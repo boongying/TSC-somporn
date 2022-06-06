@@ -6,9 +6,9 @@ from matplotlib.widgets import RangeSlider, Button
 plt.rcParams.update({'font.sans-serif':'Arial'})
 
 def tlsStages(tlsdf: pd.DataFrame,
-                   stageIndex: list,
-                   stageNames: list,
-                   definition: str = 'mode') -> pd.DataFrame:
+                stageIndex: list,
+                stageNames: list,
+                definition: str = 'mode') -> pd.DataFrame:
     '''
     definition from the statistical mode of movement indicators
         say we have stageIndex = [0,0,0,1,1,1,0,1]
@@ -36,6 +36,26 @@ def tlsStages(tlsdf: pd.DataFrame,
                 raise ValueError('the input value for \'definition\' is invalid')
             stages.loc[i,stageNames[movement]] = stageDefinition
     return stages
+
+def tlsNumpy(tlsdf: pd.DataFrame,
+             stages: pd.DataFrame):
+    '''
+    The number of colours provided in 'bar_colours' has to be equal to the number of stages
+    '''
+    tlsdf_reduced = tlsdf.loc[:,('time','subStageID')]
+    #Firstly, find which subStageIDs correspond to the green subStages of each stage. 
+    greenSubStages = {}
+    for column in  stages:
+        greenSubStages[column] = stages[column].loc[stages[column] == 'g'].index.to_list()
+        
+    for column in stages:
+        greenRows = (tlsdf['subStageID'] == greenSubStages[column][0])
+        greenTimes = pd.concat([pd.Series(tlsdf.loc[tlsdf.index[1:],'time'].to_numpy() - tlsdf.loc[tlsdf.index[:-1],'time'].to_numpy()),
+                               pd.Series([float('nan')],index = [tlsdf.index.max()])])
+        tlsdf_reduced.loc[greenRows, column] = greenTimes.loc[greenRows]
+    
+    return tlsdf_reduced.to_numpy().copy()
+        
 
 
 def universal_widgets(axSplit, axDist, axPlan):
@@ -71,16 +91,16 @@ def universal_widgets(axSplit, axDist, axPlan):
     button = Button(resetax, 'Reset', hovercolor='0.975')
     def reset(event):
         time_slider.reset()
-        axPlan.set_ylim(-0.5,len(stageNames)-0.5)
+        # axPlan.set_ylim(-0.5,len(stageNames)-0.5)
     button.on_clicked(reset)
     return time_slider, button
 
 
 def plot_signalPlan(ax: plt.Axes,
                     time_slider: RangeSlider,
-                   tlsdf: pd.DataFrame,
-                   stages: pd.DataFrame,
-                   colours: list = ['red', 'yellow', 'green', 'forestgreen']):
+                    tlsdf: pd.DataFrame,
+                    stages: pd.DataFrame,
+                    colours: list = ['red', 'yellow', 'green', 'forestgreen']):
     '''
     'colours' list must contain 4 pyplot colours which respectively represent the SUMO signal indicators r y g G.
     '''
@@ -105,35 +125,19 @@ def plot_signalPlan(ax: plt.Axes,
 
 def plot_greenTimeDistribution(ax: plt.Axes,
                                time_slider: RangeSlider,
-                               tlsdf: pd.DataFrame,
-                               stages: pd.DataFrame,
+                               tlsnp: np.ndarray,
                                num_bins: int,
                                bar_colours: list):
-    '''
-    The number of colours provided in 'bar_colours' has to be equal to the number of stages
-    '''
-    tlsdf_reduced = tlsdf.loc[:,('time','subStageID')]
-    #Firstly, find which subStageIDs correspond to the green subStages of each stage. 
-    greenSubStages = {}
-    for column in  stages:
-        greenSubStages[column] = stages[column].loc[stages[column] == 'g'].index.to_list()
-        
-    for column in stages:
-        greenRows = (tlsdf['subStageID'] == greenSubStages[column][0])
-        greenTimes = pd.concat([pd.Series(tlsdf.loc[tlsdf.index[1:],'time'].to_numpy() - tlsdf.loc[tlsdf.index[:-1],'time'].to_numpy()),
-                               pd.Series([float('nan')],index = [tlsdf.index.max()])])
-        tlsdf_reduced.loc[greenRows, column] = greenTimes.loc[greenRows]
-        
+
     #plotting routine
-    global tlsnp, dist_bins
-    tlsnp = tlsdf_reduced.to_numpy().copy()
+    global dist_bins
     
     _, dist_bins,_ = ax.hist(tlsnp[:,2:],  bins = num_bins, histtype = 'bar', color = bar_colours, label = stages.columns.to_list())
     ax.legend(prop={'size': 10})
     ax.set_xlabel('Green time (s)')
     ax.set_ylabel('Frequency')
     selected_time = (time_slider.val[0] < tlsnp[:,0]) & (tlsnp[:,0]  < time_slider.val[1])
-    for col, barContainer in enumerate(axDist.containers, 2):
+    for col, barContainer in enumerate(ax.containers, 2):
         noNaN = ~np.isnan(tlsnp[selected_time,col])
         heights = np.histogram(tlsnp[selected_time][noNaN,col], bins = dist_bins)[0]
         for i, rectangle in enumerate(barContainer.patches):
@@ -152,6 +156,7 @@ stageIndex = [0,0,0,1,1,1,0,0,0,1,1,1,1,0,1,0]
 stageNames = ['North-South','West-East']
 assert len(stageIndex) == len(tlsdf.loc[0,'state']), 'The grouping of movements into stages is not valid'
 stages = tlsStages(tlsdf, stageIndex, stageNames)
+tlsnp = tlsNumpy(tlsdf, stages)
 
 
 fig = plt.figure(figsize=(12, 6))
@@ -171,7 +176,7 @@ axPlan.set_title('Signal Plan', fontweight ="bold")
 plot_signalPlan(axPlan, time_slider, tlsdf, stages)
 
 axDist.set_title('Green Duration Distribution', fontweight = 'bold')
-plot_greenTimeDistribution(axDist, time_slider, tlsdf, stages, num_bins = 10, bar_colours = ['m', 'c'])
+plot_greenTimeDistribution(axDist, time_slider, tlsnp, num_bins = 10, bar_colours = ['m', 'c'])
 
 axSplit.set_title('Green Split', fontweight = 'bold')
 
