@@ -2,7 +2,7 @@ import statistics
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-from matplotlib.widgets import RangeSlider, Button
+from matplotlib.widgets import RangeSlider, Button, CheckButtons
 plt.rcParams.update({'font.sans-serif':'Arial'})
 
 def tlsStages(tlsdf: pd.DataFrame,
@@ -39,9 +39,7 @@ def tlsStages(tlsdf: pd.DataFrame,
 
 def tlsNumpy(tlsdf: pd.DataFrame,
              stages: pd.DataFrame):
-    '''
-    The number of colours provided in 'bar_colours' has to be equal to the number of stages
-    '''
+
     tlsdf_reduced = tlsdf.loc[:,('time','subStageID')]
     #Firstly, find which subStageIDs correspond to the green subStages of each stage. 
     greenSubStages = {}
@@ -55,8 +53,7 @@ def tlsNumpy(tlsdf: pd.DataFrame,
         tlsdf_reduced.loc[greenRows, column] = greenTimes.loc[greenRows]
     
     return tlsdf_reduced.to_numpy().copy()
-        
-
+    
 
 def universal_widgets(axSplit, axDist, axPlan):
     
@@ -81,6 +78,18 @@ def universal_widgets(axSplit, axDist, axPlan):
             heights = np.histogram(tlsnp[selected_time][noNaN,col], bins = dist_bins)[0]
             for i, rectangle in enumerate(barContainer.patches):
                 rectangle.set_height(heights[i])
+                
+        all_green = np.nan_to_num(tlsnp[selected_time,2:]).sum(axis=0)
+        all_green_cumsum = np.append(0,np.cumsum(all_green))
+        green_percent = all_green/all_green.sum()
+        for i, barContainer in enumerate(axSplit.containers):
+            barContainer.patches[0].set_x(all_green_cumsum[i])
+            barContainer.patches[0].set_width(all_green[i])
+            texts[i].set_text('{:.2f}'.format(green_percent[i]))
+            texts[i].set_x(all_green_cumsum[i] + 0.45*all_green[i])
+        axSplit.set_xticks(all_green_cumsum)
+        axSplit.set_xlim(0, all_green_cumsum[-1])
+        axSplit.set_aspect((all_green_cumsum[-1])/60*2, adjustable='box')
 
         
     # register the Callable with each slider
@@ -126,10 +135,12 @@ def plot_signalPlan(ax: plt.Axes,
 def plot_greenTimeDistribution(ax: plt.Axes,
                                time_slider: RangeSlider,
                                tlsnp: np.ndarray,
+                               stages: pd.DataFrame,
                                num_bins: int,
                                bar_colours: list):
-
-    #plotting routine
+    '''
+    The number of colours provided in 'bar_colours' has to be equal to the number of stages
+    '''
     global dist_bins
     
     _, dist_bins,_ = ax.hist(tlsnp[:,2:],  bins = num_bins, histtype = 'bar', color = bar_colours, label = stages.columns.to_list())
@@ -143,7 +154,44 @@ def plot_greenTimeDistribution(ax: plt.Axes,
         for i, rectangle in enumerate(barContainer.patches):
             rectangle.set_height(heights[i])
     
+def plot_greenTimeSplit(ax: plt.Axes, 
+                        time_slider: RangeSlider,
+                        tlsnp: np.ndarray,
+                        stages: pd.DataFrame,
+                        bar_colours: list):
+    '''
+    The number of colours provided in 'bar_colours' has to be equal to the number of stages
+    '''
+    global texts
 
+    stageNames = stages.columns.to_list()
+    all_green = np.nan_to_num(tlsnp[:,2:]).sum(axis=0)
+    all_green_cumsum = np.append(0,np.cumsum(all_green))
+    green_percent = all_green/all_green.sum()
+    for i in range(len(all_green)):
+        axSplit.barh(['Green Split'],
+                        width = all_green[i],
+                        left = all_green_cumsum[i],
+                        height = 3,
+                        color = bar_colours[i],
+                        label = stageNames[i])
+    texts = [ax.text(all_green_cumsum[i] + 0.45*all_green[i],-0.25,'{:.2f}'.format(green_percent[i]), color = 'white') for i in range(len(all_green))]
+    ax.set_xlabel('Time (s)')
+    ax.legend(loc = 'lower left', bbox_to_anchor=(0, 1.04), borderaxespad=0, prop={'size': 10})
+
+
+    selected_time = (time_slider.val[0] < tlsnp[:,0]) & (tlsnp[:,0]  < time_slider.val[1])
+    all_green = np.nan_to_num(tlsnp[selected_time,2:]).sum(axis=0)
+    all_green_cumsum = np.append(0,np.cumsum(all_green))
+    green_percent = all_green/all_green.sum()
+    for i, barContainer in enumerate(ax.containers):
+        barContainer.patches[0].set_x(all_green_cumsum[i])
+        barContainer.patches[0].set_width(all_green[i])
+        texts[i].set_text('{:.2f}'.format(green_percent[i]))
+        texts[i].set_x(all_green_cumsum[i] + 0.45*all_green[i])
+    ax.set_xticks(all_green_cumsum)
+    ax.set_xlim(0, all_green_cumsum[-1])
+    ax.set_aspect((all_green_cumsum[-1])/60*2, adjustable='box')
 
 #import the tls data and rename the variable
 tlsdf = pd.read_xml('TLSrecord.xml')
@@ -176,8 +224,9 @@ axPlan.set_title('Signal Plan', fontweight ="bold")
 plot_signalPlan(axPlan, time_slider, tlsdf, stages)
 
 axDist.set_title('Green Duration Distribution', fontweight = 'bold')
-plot_greenTimeDistribution(axDist, time_slider, tlsnp, num_bins = 10, bar_colours = ['m', 'c'])
+plot_greenTimeDistribution(axDist, time_slider, tlsnp, stages, num_bins = 10, bar_colours = ['m', 'c'])
 
 axSplit.set_title('Green Split', fontweight = 'bold')
+plot_greenTimeSplit(axSplit, time_slider, tlsnp, stages, bar_colours = ['m', 'c'])
 
 plt.show()
