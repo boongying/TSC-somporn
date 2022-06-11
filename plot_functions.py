@@ -41,22 +41,23 @@ def tlsNumpy(tlsdf: pd.DataFrame,
              stages: pd.DataFrame):
 
     tlsdf_reduced = tlsdf.loc[:,('time','subStageID')]
-    #Firstly, find which subStageIDs correspond to the green subStages of each stage. 
+    #find which subStageIDs correspond to the green subStages of each stage. 
     greenSubStages = {}
     for column in  stages:
         greenSubStages[column] = stages[column].loc[stages[column] == 'g'].index.to_list()
-        
-    for column in stages:
         greenRows = (tlsdf['subStageID'] == greenSubStages[column][0])
         greenTimes = pd.concat([pd.Series(tlsdf.loc[tlsdf.index[1:],'time'].to_numpy() - tlsdf.loc[tlsdf.index[:-1],'time'].to_numpy()),
                                pd.Series([float('nan')],index = [tlsdf.index.max()])])
         tlsdf_reduced.loc[greenRows, column] = greenTimes.loc[greenRows]
-    
+    #last column for yellow and red time
+    amberRedRows = ~greenRows
+    amberRedTimes = pd.concat([pd.Series(tlsdf.loc[tlsdf.index[1:],'time'].to_numpy() - tlsdf.loc[tlsdf.index[:-1],'time'].to_numpy()),
+                        pd.Series([float('nan')],index = [tlsdf.index.max()])])
+    tlsdf_reduced.loc[greenRows, 'AmberRed'] = greenTimes.loc[greenRows]
     return tlsdf_reduced.to_numpy().copy()
     
 
 def universal_widgets(axSplit, axDist, axPlan):
-    
     #RangeSlider for the time axis
     axtime = plt.axes([0.3, 0, 0.3, 0.09])
     time_slider = RangeSlider(ax = axtime,
@@ -94,38 +95,42 @@ def universal_widgets(axSplit, axDist, axPlan):
     # register the Callable with each slider
     time_slider.on_changed(time_update)
     
-    # CheckButtons for more plot options
-    radio1 = RadioButtons(plt.axes([0.7, 0.4, 0.18, 0.1]), ['Frequency','Probability mass'])
-    
+    # RadioButtons for more plot options
+    radio1 = RadioButtons(plt.axes([0.77, 0.37, 0.2, 0.1]), ['Frequency','Probability density'])
     def histfunc(label):
+        global density
         if label =='Frequency':
             axDist.set_ylabel('Frequency')
             density = False
-        elif label == 'Probability mass':
-            axDist.set_ylabel('Probability mass')
+            axDist.set_ylim(hist_ylim)
+        elif label == 'Probability density':
+            axDist.set_ylabel('Probability density')
             density = True
-
+            axDist.set_ylim(0,0.4)
         selected_time = (time_slider.val[0] < tlsnp[:,0]) & (tlsnp[:,0]  < time_slider.val[1])
         for col, barContainer in enumerate(axDist.containers, 2):
             noNaN = ~np.isnan(tlsnp[selected_time,col])
             heights = np.histogram(tlsnp[selected_time][noNaN,col], bins = dist_bins, density = density)[0]
             for i, rectangle in enumerate(barContainer.patches):
                 rectangle.set_height(heights[i])
-        
-        axDist.set_ylim(heights.min(),heights.max())
-                
-        
-                
     radio1.on_clicked(histfunc)
+    
+    radio2 = RadioButtons(plt.axes([0.1, 0.37, 0.2, 0.1]), ['Green','Green + Yellow + Red'])
+    def splitfunc(label):
+        if label == 'Green':
+
+        elif label == 'Green + Yellow & Red':
+            
+    radio2.on_clicked(splitfunc)
            
-    # putting up a reset button    
+    # putting up a reset button for the time slider
     resetax = plt.axes([0.7, 0.02, 0.1, 0.06])
     button = Button(resetax, 'Reset', hovercolor='0.975')
     def reset(event):
         time_slider.reset()
         # axPlan.set_ylim(-0.5,len(stageNames)-0.5)
     button.on_clicked(reset)
-    return time_slider, button, radio1
+    return time_slider, button, radio1, radio2
 
 
 def plot_signalPlan(ax: plt.Axes,
@@ -164,10 +169,11 @@ def plot_greenTimeDistribution(ax: plt.Axes,
     '''
     The number of colours provided in 'bar_colours' has to be equal to the number of stages
     '''
-    global dist_bins, density
-    density = True
+    global dist_bins, density, hist_ylim
+    density = False
     _, dist_bins,_ = ax.hist(tlsnp[:,2:],  bins = num_bins, histtype = 'bar',
                              density = density, color = bar_colours, label = stages.columns.to_list())
+    hist_ylim = ax.get_ylim()
     ax.legend(prop={'size': 10})
     ax.set_xlabel('Green time (s)')
     ax.set_ylabel('Frequency')
@@ -199,7 +205,8 @@ def plot_greenTimeSplit(ax: plt.Axes,
                         height = 3,
                         color = bar_colours[i],
                         label = stageNames[i])
-    texts = [ax.text(all_green_cumsum[i] + 0.45*all_green[i],-0.25,'{:.2f}'.format(green_percent[i]), color = 'white') for i in range(len(all_green))]
+    texts = [ax.text(all_green_cumsum[i] + 0.45*all_green[i],-0.25,'{:.2f}'.format(green_percent[i]), color = 'white') for i in range(len(all_green))]\
+            + [ax.text(all_green_cumsum[-1]) + 0.45*]
     ax.set_xlabel('Time (s)')
     ax.legend(loc = 'lower left', bbox_to_anchor=(0, 1.04), borderaxespad=0, prop={'size': 10})
 
