@@ -2,7 +2,7 @@ import statistics
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-from matplotlib.widgets import RangeSlider, Button, CheckButtons
+from matplotlib.widgets import RangeSlider, Button, RadioButtons
 plt.rcParams.update({'font.sans-serif':'Arial'})
 
 def tlsStages(tlsdf: pd.DataFrame,
@@ -75,7 +75,7 @@ def universal_widgets(axSplit, axDist, axPlan):
         selected_time = (time_slider.val[0] < tlsnp[:,0]) & (tlsnp[:,0]  < time_slider.val[1])
         for col, barContainer in enumerate(axDist.containers, 2):
             noNaN = ~np.isnan(tlsnp[selected_time,col])
-            heights = np.histogram(tlsnp[selected_time][noNaN,col], bins = dist_bins)[0]
+            heights = np.histogram(tlsnp[selected_time][noNaN,col], bins = dist_bins, density = density)[0]
             for i, rectangle in enumerate(barContainer.patches):
                 rectangle.set_height(heights[i])
                 
@@ -91,10 +91,33 @@ def universal_widgets(axSplit, axDist, axPlan):
         axSplit.set_xlim(0, all_green_cumsum[-1])
         axSplit.set_aspect((all_green_cumsum[-1])/60*2, adjustable='box')
 
-        
     # register the Callable with each slider
     time_slider.on_changed(time_update)
+    
+    # CheckButtons for more plot options
+    radio1 = RadioButtons(plt.axes([0.7, 0.4, 0.18, 0.1]), ['Frequency','Probability mass'])
+    
+    def histfunc(label):
+        if label =='Frequency':
+            axDist.set_ylabel('Frequency')
+            density = False
+        elif label == 'Probability mass':
+            axDist.set_ylabel('Probability mass')
+            density = True
+
+        selected_time = (time_slider.val[0] < tlsnp[:,0]) & (tlsnp[:,0]  < time_slider.val[1])
+        for col, barContainer in enumerate(axDist.containers, 2):
+            noNaN = ~np.isnan(tlsnp[selected_time,col])
+            heights = np.histogram(tlsnp[selected_time][noNaN,col], bins = dist_bins, density = density)[0]
+            for i, rectangle in enumerate(barContainer.patches):
+                rectangle.set_height(heights[i])
         
+        axDist.set_ylim(heights.min(),heights.max())
+                
+        
+                
+    radio1.on_clicked(histfunc)
+           
     # putting up a reset button    
     resetax = plt.axes([0.7, 0.02, 0.1, 0.06])
     button = Button(resetax, 'Reset', hovercolor='0.975')
@@ -102,7 +125,7 @@ def universal_widgets(axSplit, axDist, axPlan):
         time_slider.reset()
         # axPlan.set_ylim(-0.5,len(stageNames)-0.5)
     button.on_clicked(reset)
-    return time_slider, button
+    return time_slider, button, radio1
 
 
 def plot_signalPlan(ax: plt.Axes,
@@ -141,16 +164,17 @@ def plot_greenTimeDistribution(ax: plt.Axes,
     '''
     The number of colours provided in 'bar_colours' has to be equal to the number of stages
     '''
-    global dist_bins
-    
-    _, dist_bins,_ = ax.hist(tlsnp[:,2:],  bins = num_bins, histtype = 'bar', color = bar_colours, label = stages.columns.to_list())
+    global dist_bins, density
+    density = True
+    _, dist_bins,_ = ax.hist(tlsnp[:,2:],  bins = num_bins, histtype = 'bar',
+                             density = density, color = bar_colours, label = stages.columns.to_list())
     ax.legend(prop={'size': 10})
     ax.set_xlabel('Green time (s)')
     ax.set_ylabel('Frequency')
     selected_time = (time_slider.val[0] < tlsnp[:,0]) & (tlsnp[:,0]  < time_slider.val[1])
     for col, barContainer in enumerate(ax.containers, 2):
         noNaN = ~np.isnan(tlsnp[selected_time,col])
-        heights = np.histogram(tlsnp[selected_time][noNaN,col], bins = dist_bins)[0]
+        heights = np.histogram(tlsnp[selected_time][noNaN,col], bins = dist_bins, density = density)[0]
         for i, rectangle in enumerate(barContainer.patches):
             rectangle.set_height(heights[i])
     
@@ -218,7 +242,7 @@ Notes on the widgets:
 2. The references to the widget objects have to be kept to prevent the plot from becoming non-responsive
     (keep the return variables from 'universal_widgets' function)
 '''
-time_slider, button = universal_widgets(axSplit, axDist, axPlan) 
+time_slider, button, radio1 = universal_widgets(axSplit, axDist, axPlan) 
 
 axPlan.set_title('Signal Plan', fontweight ="bold")
 plot_signalPlan(axPlan, time_slider, tlsdf, stages)
