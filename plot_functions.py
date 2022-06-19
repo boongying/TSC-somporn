@@ -98,12 +98,15 @@ def universal_widgets(axSplit, axDist, axPlan):
     radio1 = RadioButtons(plt.axes([0.7, 0.4, 0.18, 0.1]), ['Frequency','Probability mass'])
     
     def histfunc(label):
+        global density
         if label =='Frequency':
             axDist.set_ylabel('Frequency')
             density = False
+            axDist.set_ylim(dist_ylim)
         elif label == 'Probability mass':
             axDist.set_ylabel('Probability mass')
             density = True
+            axDist.set_ylim(0,0.5)
 
         selected_time = (time_slider.val[0] < tlsnp[:,0]) & (tlsnp[:,0]  < time_slider.val[1])
         for col, barContainer in enumerate(axDist.containers, 2):
@@ -112,7 +115,7 @@ def universal_widgets(axSplit, axDist, axPlan):
             for i, rectangle in enumerate(barContainer.patches):
                 rectangle.set_height(heights[i])
         
-        axDist.set_ylim(heights.min(),heights.max())
+        
                 
         
                 
@@ -164,10 +167,11 @@ def plot_greenTimeDistribution(ax: plt.Axes,
     '''
     The number of colours provided in 'bar_colours' has to be equal to the number of stages
     '''
-    global dist_bins, density
-    density = True
+    global dist_bins, density, dist_ylim
+    density = False
     _, dist_bins,_ = ax.hist(tlsnp[:,2:],  bins = num_bins, histtype = 'bar',
                              density = density, color = bar_colours, label = stages.columns.to_list())
+    dist_ylim = ax.get_ylim()
     ax.legend(prop={'size': 10})
     ax.set_xlabel('Green time (s)')
     ax.set_ylabel('Frequency')
