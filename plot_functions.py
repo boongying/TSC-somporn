@@ -39,21 +39,22 @@ def tlsStages(tlsdf: pd.DataFrame,
 
 def tlsNumpy(tlsdf: pd.DataFrame,
              stages: pd.DataFrame):
-
     tlsdf_reduced = tlsdf.loc[:,('time','subStageID')]
     #find which subStageIDs correspond to the green subStages of each stage. 
     greenSubStages = {}
+    amberRedRows = pd.Series([False for _ in range(tlsdf.shape[0])])
     for column in  stages:
         greenSubStages[column] = stages[column].loc[stages[column] == 'g'].index.to_list()
         greenRows = (tlsdf['subStageID'] == greenSubStages[column][0])
         greenTimes = pd.concat([pd.Series(tlsdf.loc[tlsdf.index[1:],'time'].to_numpy() - tlsdf.loc[tlsdf.index[:-1],'time'].to_numpy()),
                                pd.Series([float('nan')],index = [tlsdf.index.max()])])
         tlsdf_reduced.loc[greenRows, column] = greenTimes.loc[greenRows]
+        amberRedRows = amberRedRows | greenRows
     #last column for yellow and red time
-    amberRedRows = ~greenRows
+    amberRedRows = ~amberRedRows
     amberRedTimes = pd.concat([pd.Series(tlsdf.loc[tlsdf.index[1:],'time'].to_numpy() - tlsdf.loc[tlsdf.index[:-1],'time'].to_numpy()),
                         pd.Series([float('nan')],index = [tlsdf.index.max()])])
-    tlsdf_reduced.loc[greenRows, 'AmberRed'] = greenTimes.loc[greenRows]
+    tlsdf_reduced.loc[amberRedRows, 'AmberRed'] = amberRedTimes.loc[amberRedRows]
     return tlsdf_reduced.to_numpy().copy()
     
 
@@ -80,7 +81,7 @@ def universal_widgets(axSplit, axDist, axPlan):
             for i, rectangle in enumerate(barContainer.patches):
                 rectangle.set_height(heights[i])
                 
-        all_green = np.nan_to_num(tlsnp[selected_time,2:]).sum(axis=0)
+        all_green = np.nan_to_num(tlsnp[selected_time,2:-1]).sum(axis=0)
         all_green_cumsum = np.append(0,np.cumsum(all_green))
         green_percent = all_green/all_green.sum()
         for i, barContainer in enumerate(axSplit.containers):
@@ -103,10 +104,10 @@ def universal_widgets(axSplit, axDist, axPlan):
             axDist.set_ylabel('Frequency')
             density = False
             axDist.set_ylim(dist_ylim)
-        elif label == 'Probability mass':
-            axDist.set_ylabel('Probability mass')
+        elif label == 'Probability density':
+            axDist.set_ylabel('Probability density')
             density = True
-            axDist.set_ylim(0,0.5)
+            axDist.set_ylim(0,0.3)
 
         selected_time = (time_slider.val[0] < tlsnp[:,0]) & (tlsnp[:,0]  < time_slider.val[1])
         for col, barContainer in enumerate(axDist.containers, 2):
@@ -114,14 +115,10 @@ def universal_widgets(axSplit, axDist, axPlan):
             heights = np.histogram(tlsnp[selected_time][noNaN,col], bins = dist_bins, density = density)[0]
             for i, rectangle in enumerate(barContainer.patches):
                 rectangle.set_height(heights[i])
-        
-        
-                
-        
-                
+    
     radio1.on_clicked(histfunc)
     
-    radio2 = RadioButtons(plt.axes([0.1, 0.37, 0.2, 0.1]), ['Green','Green + Yellow + Red'])
+    radio2 = RadioButtons(plt.axes([0.1, 0.37, 0.2, 0.1]), ['Green','Green + Yellow & Red'])
     def splitfunc(label):
         if label == 'Green':
             pass
@@ -177,7 +174,7 @@ def plot_greenTimeDistribution(ax: plt.Axes,
     '''
     global dist_bins, density, dist_ylim
     density = False
-    _, dist_bins,_ = ax.hist(tlsnp[:,2:],  bins = num_bins, histtype = 'bar',
+    _, dist_bins,_ = ax.hist(tlsnp[:,2:-1],  bins = num_bins, histtype = 'bar',
                              density = density, color = bar_colours, label = stages.columns.to_list())
     dist_ylim = ax.get_ylim()
     ax.legend(prop={'size': 10})
@@ -201,7 +198,7 @@ def plot_greenTimeSplit(ax: plt.Axes,
     global texts
 
     stageNames = stages.columns.to_list()
-    all_green = np.nan_to_num(tlsnp[:,2:]).sum(axis=0)
+    all_green = np.nan_to_num(tlsnp[:,2:-1]).sum(axis=0)
     all_green_cumsum = np.append(0,np.cumsum(all_green))
     green_percent = all_green/all_green.sum()
     for i in range(len(all_green)):
@@ -211,14 +208,13 @@ def plot_greenTimeSplit(ax: plt.Axes,
                         height = 3,
                         color = bar_colours[i],
                         label = stageNames[i])
-    texts = [ax.text(all_green_cumsum[i] + 0.45*all_green[i],-0.25,'{:.2f}'.format(green_percent[i]), color = 'white') for i in range(len(all_green))]\
-        + [ax.text(all_green_cumsum[-1]) + 0.45*]
+    texts = [ax.text(all_green_cumsum[i] + 0.45*all_green[i],-0.25,'{:.2f}'.format(green_percent[i]), color = 'white') for i in range(len(all_green))]# + [ax.text(all_green_cumsum[-1]) + 0.45*]
     ax.set_xlabel('Time (s)')
     ax.legend(loc = 'lower left', bbox_to_anchor=(0, 1.04), borderaxespad=0, prop={'size': 10})
 
 
     selected_time = (time_slider.val[0] < tlsnp[:,0]) & (tlsnp[:,0]  < time_slider.val[1])
-    all_green = np.nan_to_num(tlsnp[selected_time,2:]).sum(axis=0)
+    all_green = np.nan_to_num(tlsnp[selected_time,2:-1]).sum(axis=0)
     all_green_cumsum = np.append(0,np.cumsum(all_green))
     green_percent = all_green/all_green.sum()
     for i, barContainer in enumerate(ax.containers):
@@ -255,7 +251,7 @@ Notes on the widgets:
 2. The references to the widget objects have to be kept to prevent the plot from becoming non-responsive
     (keep the return variables from 'universal_widgets' function)
 '''
-time_slider, button, radio1 = universal_widgets(axSplit, axDist, axPlan) 
+time_slider, button, radio1, radio2 = universal_widgets(axSplit, axDist, axPlan) 
 
 axPlan.set_title('Signal Plan', fontweight ="bold")
 plot_signalPlan(axPlan, time_slider, tlsdf, stages)
