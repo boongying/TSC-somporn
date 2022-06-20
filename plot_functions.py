@@ -1,3 +1,4 @@
+from itertools import filterfalse
 import statistics
 import pandas as pd
 import numpy as np
@@ -17,7 +18,7 @@ def tlsStages(tlsdf: pd.DataFrame,
         
     definition from the first movement indicator
         say we have sigGruppenIndex = [>0<,0,0,>1<,1,1,0,1]
-        and the state of a stage i is '>y< g g >r< r r g r' 
+        and the state of subStage i is '>y< g g >r< r r g r' 
         then the states at subStage i is stage0:y , stage1:r
     '''
     stages = pd.DataFrame(columns = stageNames,
@@ -81,17 +82,18 @@ def universal_widgets(axSplit, axDist, axPlan):
             for i, rectangle in enumerate(barContainer.patches):
                 rectangle.set_height(heights[i])
                 
-        all_green = np.nan_to_num(tlsnp[selected_time,2:-1]).sum(axis=0)
-        all_green_cumsum = np.append(0,np.cumsum(all_green))
-        green_percent = all_green/all_green.sum()
-        for i, barContainer in enumerate(axSplit.containers):
-            barContainer.patches[0].set_x(all_green_cumsum[i])
-            barContainer.patches[0].set_width(all_green[i])
+        selected_time = (time_slider.val[0] < tlsnp[:,0]) & (tlsnp[:,0]  < time_slider.val[1])
+        all_signal = np.nan_to_num(tlsnp[selected_time,2:onlyGreen]).sum(axis=0)
+        all_signal_cumsum = np.append(0,np.cumsum(all_signal))
+        green_percent = all_signal/all_signal.sum()
+        for i, barContainer in enumerate(axSplit.containers[:onlyGreen]):
+            barContainer.patches[0].set_x(all_signal_cumsum[i])
+            barContainer.patches[0].set_width(all_signal[i])
             texts[i].set_text('{:.2f}'.format(green_percent[i]))
-            texts[i].set_x(all_green_cumsum[i] + 0.45*all_green[i])
-        axSplit.set_xticks(all_green_cumsum)
-        axSplit.set_xlim(0, all_green_cumsum[-1])
-        axSplit.set_aspect((all_green_cumsum[-1])/60*2, adjustable='box')
+            texts[i].set_x(all_signal_cumsum[i] + 0.45*all_signal[i])
+        axSplit.set_xticks(all_signal_cumsum)
+        axSplit.set_xlim(0, all_signal_cumsum[-1])
+        axSplit.set_aspect((all_signal_cumsum[-1])/60*2, adjustable='box')
 
     # register the Callable with each slider
     time_slider.on_changed(time_update)
@@ -118,12 +120,29 @@ def universal_widgets(axSplit, axDist, axPlan):
     
     radio1.on_clicked(histfunc)
     
-    radio2 = RadioButtons(plt.axes([0.1, 0.37, 0.2, 0.1]), ['Green','Green + Yellow & Red'])
+    radio2 = RadioButtons(plt.axes([0.1, 0.37, 0.2, 0.1]), ['Green + Yellow & Red','Green'])
     def splitfunc(label):
-        if label == 'Green':
-            pass
-        elif label == 'Green + Yellow & Red':
-            pass
+        global onlyGreen
+        if label == 'Green + Yellow & Red':
+            onlyGreen = None
+            texts[-1].set_alpha(1.0)
+        elif label == 'Green':
+            onlyGreen = -1
+            texts[-1].set_alpha(0)
+            axSplit.containers[-1].patches[0].set_width(0)
+        selected_time = (time_slider.val[0] < tlsnp[:,0]) & (tlsnp[:,0]  < time_slider.val[1])
+        all_signal = np.nan_to_num(tlsnp[selected_time,2:onlyGreen]).sum(axis=0)
+        all_signal_cumsum = np.append(0,np.cumsum(all_signal))
+        green_percent = all_signal/all_signal.sum()
+        for i, barContainer in enumerate(axSplit.containers[:onlyGreen]):
+            barContainer.patches[0].set_x(all_signal_cumsum[i])
+            barContainer.patches[0].set_width(all_signal[i])
+            texts[i].set_text('{:.2f}'.format(green_percent[i]))
+            texts[i].set_x(all_signal_cumsum[i] + 0.45*all_signal[i])
+        axSplit.set_xticks(all_signal_cumsum)
+        axSplit.set_xlim(0, all_signal_cumsum[-1])
+        axSplit.set_aspect((all_signal_cumsum[-1])/60*2, adjustable='box')
+        
     radio2.on_clicked(splitfunc)
            
     # putting up a reset button for the time slider
@@ -195,36 +214,38 @@ def plot_greenTimeSplit(ax: plt.Axes,
     '''
     The number of colours provided in 'bar_colours' has to be equal to the number of stages
     '''
-    global texts
-
+    global texts, onlyGreen
+    onlyGreen = None # None or -1
+    bar_colours.append('grey')
     stageNames = stages.columns.to_list()
-    all_green = np.nan_to_num(tlsnp[:,2:-1]).sum(axis=0)
-    all_green_cumsum = np.append(0,np.cumsum(all_green))
-    green_percent = all_green/all_green.sum()
-    for i in range(len(all_green)):
+    stageNames.append('Yellow & red')
+    all_signal = np.nan_to_num(tlsnp[:,2:]).sum(axis=0)
+    all_signal_cumsum = np.append(0,np.cumsum(all_signal))
+    signal_percent = all_signal/all_signal.sum()
+    for i in range(len(all_signal)):
         axSplit.barh(['Green Split'],
-                        width = all_green[i],
-                        left = all_green_cumsum[i],
+                        width = all_signal[i],
+                        left = all_signal_cumsum[i],
                         height = 3,
                         color = bar_colours[i],
                         label = stageNames[i])
-    texts = [ax.text(all_green_cumsum[i] + 0.45*all_green[i],-0.25,'{:.2f}'.format(green_percent[i]), color = 'white') for i in range(len(all_green))]# + [ax.text(all_green_cumsum[-1]) + 0.45*]
+    texts = [ax.text(all_signal_cumsum[i] + 0.45*all_signal[i],-0.25,'{:.2f}'.format(signal_percent[i]), color = 'white') for i in range(len(all_signal))]# + [ax.text(all_green_cumsum[-1]) + 0.45*]
     ax.set_xlabel('Time (s)')
     ax.legend(loc = 'lower left', bbox_to_anchor=(0, 1.04), borderaxespad=0, prop={'size': 10})
 
 
     selected_time = (time_slider.val[0] < tlsnp[:,0]) & (tlsnp[:,0]  < time_slider.val[1])
-    all_green = np.nan_to_num(tlsnp[selected_time,2:-1]).sum(axis=0)
-    all_green_cumsum = np.append(0,np.cumsum(all_green))
-    green_percent = all_green/all_green.sum()
-    for i, barContainer in enumerate(ax.containers):
-        barContainer.patches[0].set_x(all_green_cumsum[i])
-        barContainer.patches[0].set_width(all_green[i])
+    all_signal = np.nan_to_num(tlsnp[selected_time,2:onlyGreen]).sum(axis=0)
+    all_signal_cumsum = np.append(0,np.cumsum(all_signal))
+    green_percent = all_signal/all_signal.sum()
+    for i, barContainer in enumerate(ax.containers[:onlyGreen]):
+        barContainer.patches[0].set_x(all_signal_cumsum[i])
+        barContainer.patches[0].set_width(all_signal[i])
         texts[i].set_text('{:.2f}'.format(green_percent[i]))
-        texts[i].set_x(all_green_cumsum[i] + 0.45*all_green[i])
-    ax.set_xticks(all_green_cumsum)
-    ax.set_xlim(0, all_green_cumsum[-1])
-    ax.set_aspect((all_green_cumsum[-1])/60*2, adjustable='box')
+        texts[i].set_x(all_signal_cumsum[i] + 0.45*all_signal[i])
+    ax.set_xticks(all_signal_cumsum)
+    ax.set_xlim(0, all_signal_cumsum[-1])
+    ax.set_aspect((all_signal_cumsum[-1])/60*2, adjustable='box')
 
 #import the tls data and rename the variable
 tlsdf = pd.read_xml('TLSrecord.xml')
