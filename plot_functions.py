@@ -11,12 +11,13 @@ def tlsStages(tlsdf: pd.DataFrame,
                 stageNames: list,
                 definition: str = 'mode') -> pd.DataFrame:
     '''
-    definition from the statistical mode of movement indicators
+    There are two ways for definition of subStage definition
+    1) definition from the statistical mode of movement indicators
         say we have stageIndex = [0,0,0,1,1,1,0,1]
         and the state of a subStage i is 'y g g r r r g r' 
         then the states at subStage i are stage0:g (3g over 1y), stage1:r (4r)
         
-    definition from the first movement indicator
+    2) definition from the first movement indicator
         say we have sigGruppenIndex = [>0<,0,0,>1<,1,1,0,1]
         and the state of subStage i is '>y< g g >r< r r g r' 
         then the states at subStage i is stage0:y , stage1:r
@@ -59,7 +60,7 @@ def tlsNumpy(tlsdf: pd.DataFrame,
     return tlsdf_reduced.to_numpy().copy()
     
 
-def universal_widgets(axSplit, axDist, axPlan):
+def universal_widgets(axSplit, axDist, axCylic, axPlan):
     #RangeSlider for the time axis
     axtime = plt.axes([0.3, 0, 0.3, 0.09])
     time_slider = RangeSlider(ax = axtime,
@@ -72,6 +73,8 @@ def universal_widgets(axSplit, axDist, axPlan):
     
     # the Callable for each time there is a change of slider
     def time_update(val):
+        axCyclic.set_xlim(time_slider.val[0]-3, time_slider.val[1]+3)
+        axCyclic.set_aspect((time_slider.val[1]-time_slider.val[0])/720, adjustable='box')
         axPlan.set_xlim(time_slider.val[0], time_slider.val[1])
         axPlan.set_aspect((time_slider.val[1]-time_slider.val[0])/60*1.5, adjustable='box')
         
@@ -99,7 +102,7 @@ def universal_widgets(axSplit, axDist, axPlan):
     time_slider.on_changed(time_update)
     
     # RadioButtons for more plot options
-    radio1 = RadioButtons(plt.axes([0.77, 0.37, 0.2, 0.1]), ['Frequency','Probability density'])
+    radio1 = RadioButtons(plt.axes([0.72, 0.58, 0.18, 0.07]), ['Frequency','Probability density'])
     def histfunc(label):
         global density
         if label =='Frequency':
@@ -120,10 +123,10 @@ def universal_widgets(axSplit, axDist, axPlan):
     
     radio1.on_clicked(histfunc)
     
-    radio2 = RadioButtons(plt.axes([0.1, 0.37, 0.2, 0.1]), ['Green + Yellow & Red','Green'])
+    radio2 = RadioButtons(plt.axes([0.3, 0.63, 0.18, 0.07]), ['Green + Yellow & red','Green'])
     def splitfunc(label):
         global onlyGreen
-        if label == 'Green + Yellow & Red':
+        if label == 'Green + Yellow & red':
             onlyGreen = None
             texts[-1].set_alpha(1.0)
         elif label == 'Green':
@@ -157,7 +160,7 @@ def universal_widgets(axSplit, axDist, axPlan):
 
 def plot_signalPlan(ax: plt.Axes,
                     time_slider: RangeSlider,
-                    tlsdf: pd.DataFrame,
+                    tlsnp: np.ndarray,
                     stages: pd.DataFrame,
                     colours: list = ['red', 'yellow', 'green', 'forestgreen']):
     '''
@@ -168,14 +171,14 @@ def plot_signalPlan(ax: plt.Axes,
     for i, color in enumerate('rygG'):
         stages_plan[stages==color] = colours[i]
 
-    for i in tlsdf.index[:-1]:
+    for i in range(tlsnp.shape[0]-1):
         ax.barh(stageNames,
-                width = tlsdf.loc[i+1,'time'] - tlsdf.loc[i,'time'], 
-                left = tlsdf.loc[i,'time'],
+                width = tlsnp[i+1,0] - tlsnp[i,0], 
+                left = tlsnp[i,0],
                 height = 0.5,
-                color = stages_plan.loc[tlsdf.loc[i,'subStageID']])
+                color = stages_plan.loc[tlsnp[i,1]])
     ax.set_xlabel('Simulation time (s)')
-    ax.set_xticks(tlsdf['time'], minor = True, linewidth = 0.5)
+    ax.set_xticks(tlsnp[:,0], minor = True, linewidth = 0.5)
     ax.xaxis.grid(True, which='minor')
     
     ax.set_xlim(time_slider.val[0], time_slider.val[1])
@@ -223,13 +226,13 @@ def plot_greenTimeSplit(ax: plt.Axes,
     all_signal_cumsum = np.append(0,np.cumsum(all_signal))
     signal_percent = all_signal/all_signal.sum()
     for i in range(len(all_signal)):
-        axSplit.barh(['Green Split'],
+        ax.barh(['Green Split'],
                         width = all_signal[i],
                         left = all_signal_cumsum[i],
                         height = 3,
                         color = bar_colours[i],
                         label = stageNames[i])
-    texts = [ax.text(all_signal_cumsum[i] + 0.45*all_signal[i],-0.25,'{:.2f}'.format(signal_percent[i]), color = 'white') for i in range(len(all_signal))]# + [ax.text(all_green_cumsum[-1]) + 0.45*]
+    texts = [ax.text(all_signal_cumsum[i] + 0.45*all_signal[i],-0.25,'{:.2f}'.format(signal_percent[i]), color = 'white') for i in range(len(all_signal))]
     ax.set_xlabel('Time (s)')
     ax.legend(loc = 'lower left', bbox_to_anchor=(0, 1.04), borderaxespad=0, prop={'size': 10})
 
@@ -247,6 +250,49 @@ def plot_greenTimeSplit(ax: plt.Axes,
     ax.set_xlim(0, all_signal_cumsum[-1])
     ax.set_aspect((all_signal_cumsum[-1])/60*2, adjustable='box')
 
+def plot_cyclicity(ax: plt.Axes, 
+                        time_slider: RangeSlider,
+                        tlsnp: np.ndarray,
+                        stages: pd.DataFrame,
+                        cyclicity: int,
+                        bar_colours: list):
+    '''
+    There are 2 variations of cyclicity plot
+    1) A vertical bar is stacked until the same stage is recurred (default).
+    2) A vertical bar is stacked until all stages are occured.
+    '''
+    bar_loc = 0
+    last_top = 0 
+    storage = []
+    greenSubStages = {}
+    for column in  stages:
+        greenSubStages[column] = stages[column].loc[stages[column] == 'g'].index.to_list()
+    flattenedGreen = [i for j in list(greenSubStages.values()) for i in j]
+    bar_colours = pd.Series(bar_colours, index = flattenedGreen) # watch out, this may not work when a stage is green at more than 1 subStages
+    for i in range(tlsnp.shape[0]-1):
+        storage.append(tlsnp[i,1])
+        cond1 = any([storage.count(subStageID) > 1 for subStageID in stages.index]) and cyclicity == 1 # the condition for first varition of plot
+        cond2 = all([subStageID in storage for subStageID in stages.index]) and cyclicity == 2 # the condition for second varition of plot
+        if cond1 or cond2:
+            storage = [tlsnp[i,1]]
+            bar_loc = tlsnp[i,0]
+            last_top = 0 
+            
+        if tlsnp[i, 1] in flattenedGreen:
+            ax.bar(x = bar_loc,
+                    height = tlsnp[i+1,0] - tlsnp[i,0], 
+                    bottom = last_top,
+                    width = 5,
+                    color = bar_colours[tlsnp[i, 1]])
+            last_top = tlsnp[i+1,0] - tlsnp[i,0] + last_top
+
+    ax.set_xlabel('Simulation time (s)')
+    ax.set_ylabel('Quasi-cyclic green time (s)')
+    ax.xaxis.grid(True)
+    
+    ax.set_xlim(time_slider.val[0]-3, time_slider.val[1]+3)
+    ax.set_aspect((time_slider.val[1]-time_slider.val[0])/720, adjustable='box')
+    
 #import the tls data and rename the variable
 tlsdf = pd.read_xml('TLSrecord.xml')
 colnames = tlsdf.columns.to_series()
@@ -261,10 +307,12 @@ stages = tlsStages(tlsdf, stageIndex, stageNames)
 tlsnp = tlsNumpy(tlsdf, stages)
 
 
-fig = plt.figure(figsize=(12, 6))
-axSplit = fig.add_subplot(2,2,1)
-axDist = fig.add_subplot(2,2,2)
-axPlan = fig.add_subplot(2,1,2)
+fig = plt.figure(figsize=(12, 8))
+axSplit = fig.add_subplot(4,2,1)
+axDist = fig.add_subplot(4,2,2)
+axCyclic = fig.add_subplot(4,1,3)
+axPlan = fig.add_subplot(4,1,4)
+
 
 '''
 Notes on the widgets:
@@ -272,13 +320,17 @@ Notes on the widgets:
 2. The references to the widget objects have to be kept to prevent the plot from becoming non-responsive
     (keep the return variables from 'universal_widgets' function)
 '''
-time_slider, button, radio1, radio2 = universal_widgets(axSplit, axDist, axPlan) 
+time_slider, button, radio1, radio2 = universal_widgets(axSplit, axDist, axCyclic, axPlan) 
 
 axPlan.set_title('Signal Plan', fontweight ="bold")
-plot_signalPlan(axPlan, time_slider, tlsdf, stages)
+plot_signalPlan(axPlan, time_slider, tlsnp, stages)
 
 axDist.set_title('Green Duration Distribution', fontweight = 'bold')
 plot_greenTimeDistribution(axDist, time_slider, tlsnp, stages, num_bins = 10, bar_colours = ['m', 'c'])
+
+cyclicity_type = 1
+axCyclic.set_title('Cyclicity plot using the {} definition'.format('first' if cyclicity_type == 1 else 'second'), fontweight ='bold')
+plot_cyclicity(axCyclic, time_slider, tlsnp, stages, cyclicity_type, bar_colours = ['m', 'c'])
 
 axSplit.set_title('Green Split', fontweight = 'bold')
 plot_greenTimeSplit(axSplit, time_slider, tlsnp, stages, bar_colours = ['m', 'c'])
