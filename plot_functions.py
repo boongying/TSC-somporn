@@ -3,6 +3,7 @@ import statistics
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.gridspec as gridspec
 from matplotlib.widgets import RangeSlider, Button, RadioButtons
 plt.rcParams.update({'font.sans-serif':'Arial'})
 
@@ -308,10 +309,11 @@ tlsnp = tlsNumpy(tlsdf, stages)
 
 
 fig = plt.figure(figsize=(12, 8))
-axSplit = fig.add_subplot(4,2,1)
-axDist = fig.add_subplot(4,2,2)
-axCyclic = fig.add_subplot(4,1,3)
-axPlan = fig.add_subplot(4,1,4)
+gs = gridspec.GridSpec(9, 2)
+axSplit = fig.add_subplot(gs[0:2,0])
+axDist = fig.add_subplot(gs[0:2,1])
+axCyclic = fig.add_subplot(gs[3:6,:])
+axPlan = fig.add_subplot(gs[6:9,:])
 
 
 '''
