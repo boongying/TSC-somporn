@@ -61,16 +61,15 @@ def tlsNumpy(tlsdf: pd.DataFrame,
     return tlsdf_reduced.to_numpy().copy()
     
 
-def universal_widgets(axSplit, axDist, axCylic, axPlan):
+def universal_widgets(tlsnp, axSplit, axDist, axCyclic, axPlan):
     #RangeSlider for the time axis
     axtime = plt.axes([0.3, 0, 0.3, 0.09])
     time_slider = RangeSlider(ax = axtime,
                          label = 'Plot range',
                          valmin = 0,
-                         valmax = tlsdf['time'].max(),
+                         valmax = tlsnp[:,0].max(),
                          valinit = (0,180),
                          valfmt = '%d s')
-    
     
     # the Callable for each time there is a change of slider
     def time_update(val):
@@ -294,47 +293,48 @@ def plot_cyclicity(ax: plt.Axes,
     ax.set_xlim(time_slider.val[0]-3, time_slider.val[1]+3)
     ax.set_aspect((time_slider.val[1]-time_slider.val[0])/720, adjustable='box')
     
-#import the tls data and rename the variable
-tlsdf = pd.read_xml('TLSrecord.xml')
-colnames = tlsdf.columns.to_series()
-colnames.loc[colnames == 'phase'] = 'subStageID'
-tlsdf.columns = colnames
-del colnames
-
-stageIndex = [0,0,0,1,1,1,0,0,0,1,1,1,1,0,1,0]
-stageNames = ['North-South','West-East']
-assert len(stageIndex) == len(tlsdf.loc[0,'state']), 'The grouping of movements into stages is not valid'
-stages = tlsStages(tlsdf, stageIndex, stageNames)
-tlsnp = tlsNumpy(tlsdf, stages)
 
 
-fig = plt.figure(figsize=(12, 8))
-gs = gridspec.GridSpec(9, 2)
-axSplit = fig.add_subplot(gs[0:2,0])
-axDist = fig.add_subplot(gs[0:2,1])
-axCyclic = fig.add_subplot(gs[3:6,:])
-axPlan = fig.add_subplot(gs[6:9,:])
+def clusterPlot_TLS(tlsdf, stageIndices, stageNames):
+    assert len(stageIndices) == len(tlsdf.loc[0,'state']), 'The grouping of movements into stages is not valid'
+    
+    #just to change column name 'phase' to 'subStageID'
+    colnames = tlsdf.columns.to_series()
+    colnames.loc[colnames == 'phase'] = 'subStageID'
+    tlsdf.columns = colnames
+    del colnames
+    
+    stages = tlsStages(tlsdf, stageIndices, stageNames)
+    tlsnp = tlsNumpy(tlsdf, stages)
 
 
-'''
-Notes on the widgets:
-1. The widgets have to be initialised before calling the plot functions
-2. The references to the widget objects have to be kept to prevent the plot from becoming non-responsive
-    (keep the return variables from 'universal_widgets' function)
-'''
-time_slider, button, radio1, radio2 = universal_widgets(axSplit, axDist, axCyclic, axPlan) 
+    fig = plt.figure(figsize=(12, 8))
+    gs = gridspec.GridSpec(9, 2)
+    axSplit = fig.add_subplot(gs[0:2,0])
+    axDist = fig.add_subplot(gs[0:2,1])
+    axCyclic = fig.add_subplot(gs[3:6,:])
+    axPlan = fig.add_subplot(gs[6:9,:])
 
-axPlan.set_title('Signal Plan', fontweight ="bold")
-plot_signalPlan(axPlan, time_slider, tlsnp, stages)
 
-axDist.set_title('Green Duration Distribution', fontweight = 'bold')
-plot_greenTimeDistribution(axDist, time_slider, tlsnp, stages, num_bins = 10, bar_colours = ['m', 'c'])
+    '''
+    Notes on the widgets:
+    1. The widgets have to be initialised before calling the plot functions
+    2. The references to the widget objects have to be kept to prevent the plot from becoming non-responsive
+        (keep the return variables from 'universal_widgets' function)
+    '''
+    time_slider, button, radio1, radio2 = universal_widgets(tlsnp, axSplit, axDist, axCyclic, axPlan) 
 
-cyclicity_type = 1
-axCyclic.set_title('Cyclicity plot using the {} definition'.format('first' if cyclicity_type == 1 else 'second'), fontweight ='bold')
-plot_cyclicity(axCyclic, time_slider, tlsnp, stages, cyclicity_type, bar_colours = ['m', 'c'])
+    axPlan.set_title('Signal Plan', fontweight ="bold")
+    plot_signalPlan(axPlan, time_slider, tlsnp, stages)
 
-axSplit.set_title('Green Split', fontweight = 'bold')
-plot_greenTimeSplit(axSplit, time_slider, tlsnp, stages, bar_colours = ['m', 'c'])
+    axDist.set_title('Green Duration Distribution', fontweight = 'bold')
+    plot_greenTimeDistribution(axDist, time_slider, tlsnp, stages, num_bins = 10, bar_colours = ['m', 'c'])
 
-plt.show()
+    cyclicity_type = 1
+    axCyclic.set_title('Cyclicity plot using the {} definition'.format('first' if cyclicity_type == 1 else 'second'), fontweight ='bold')
+    plot_cyclicity(axCyclic, time_slider, tlsnp, stages, cyclicity_type, bar_colours = ['m', 'c'])
+
+    axSplit.set_title('Green Split', fontweight = 'bold')
+    plot_greenTimeSplit(axSplit, time_slider, tlsnp, stages, bar_colours = ['m', 'c'])
+    
+    return time_slider, button, radio1, radio2
