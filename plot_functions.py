@@ -36,13 +36,13 @@ plt.rcParams.update({'font.sans-serif':'Arial'})
 
 
 def tlsStages(tlsdf: pd.DataFrame,
-                stageIndex: list,
+                stageIndices: list,
                 stageNames: list,
                 definition: str = 'mode') -> pd.DataFrame:
     '''
     There are two ways for definition of subStage definition
     1) definition from the statistical mode of movement indicators
-        say we have stageIndex = [0,0,0,1,1,1,0,1]
+        say we have stageIndices = [0,0,0,1,1,1,0,1]
         and the state of a subStage i is 'y g g r r r g r' 
         then the states at subStage i are stage0:g (3g over 1y), stage1:r (4r)
         
@@ -57,7 +57,7 @@ def tlsStages(tlsdf: pd.DataFrame,
         assert len(pd.unique(tlsdf.loc[tlsdf['subStageID'] == i,'state'])) == 1, 'movement definition conflict'
         indicators = pd.unique(tlsdf.loc[tlsdf['subStageID'] == i,'state'])[0]
         for movement in range(len(stageNames)):
-            slicedIndex = [ind for ind, j in enumerate(stageIndex) if j == movement]
+            slicedIndex = [ind for ind, j in enumerate(stageIndices) if j == movement]
             movementIndicators = [indicators[ind] for ind in slicedIndex]
             if definition == 'mode':
                 stageDefinition = statistics.mode(movementIndicators)
@@ -287,7 +287,7 @@ def plot_cyclicity(ax: plt.Axes,
     '''
     There are 2 variations of cyclicity plot
     1) A vertical bar is stacked until the same stage is recurred (default).
-    2) A vertical bar is stacked until all stages are occured.
+    2) A vertical bar is stacked until all stages are in the bar.
     '''
     bar_loc = 0
     last_top = 0 
@@ -330,14 +330,15 @@ def clusterPlot_TLS(tlsdf, stageIndices, stageNames, **kwargs):
     bar_colours = kwargs.get('bar_colours', [mini_dict['color'] for mini_dict in mpl.rcParams["axes.prop_cycle"][:len(stageNames)]])
     num_bins = kwargs.get('num_bins', 10)
     cyclicity_type = kwargs.get('cyclicity_type', 1)
+    stage_type = kwargs.get('stage_type', 'mode')
     
     #just to change column name 'phase' to 'subStageID'
     colnames = tlsdf.columns.to_series()
     colnames.loc[colnames == 'phase'] = 'subStageID'
     tlsdf.columns = colnames
     del colnames
-    #basic meta-data for the subroutines
-    stages = tlsStages(tlsdf, stageIndices, stageNames)
+    #basic meta-data for the following subroutines
+    stages = tlsStages(tlsdf, stageIndices, stageNames, stage_type)
     tlsnp = tlsNumpy(tlsdf, stages)
 
     fig = plt.figure(figsize=(12, 8))
