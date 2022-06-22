@@ -2,10 +2,12 @@ from itertools import filterfalse
 import statistics
 import pandas as pd
 import numpy as np
+import matplotlib as mpl
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 from matplotlib.widgets import RangeSlider, Button, RadioButtons
 plt.rcParams.update({'font.sans-serif':'Arial'})
+
 
 def tlsStages(tlsdf: pd.DataFrame,
                 stageIndex: list,
@@ -295,18 +297,22 @@ def plot_cyclicity(ax: plt.Axes,
     
 
 
-def clusterPlot_TLS(tlsdf, stageIndices, stageNames):
+def clusterPlot_TLS(tlsdf, stageIndices, stageNames, **kwargs):
     assert len(stageIndices) == len(tlsdf.loc[0,'state']), 'The grouping of movements into stages is not valid'
+    
+    #Handling the keyword arugments which are optional arguments
+    bar_colours = kwargs.get('bar_colours', [mini_dict['color'] for mini_dict in mpl.rcParams["axes.prop_cycle"][:len(stageNames)]])
+    num_bins = kwargs.get('num_bins', 10)
+    cyclicity_type = kwargs.get('cyclicity_type', 1)
     
     #just to change column name 'phase' to 'subStageID'
     colnames = tlsdf.columns.to_series()
     colnames.loc[colnames == 'phase'] = 'subStageID'
     tlsdf.columns = colnames
     del colnames
-    
+    #basic meta-data for the subroutines
     stages = tlsStages(tlsdf, stageIndices, stageNames)
     tlsnp = tlsNumpy(tlsdf, stages)
-
 
     fig = plt.figure(figsize=(12, 8))
     gs = gridspec.GridSpec(9, 2)
@@ -314,7 +320,6 @@ def clusterPlot_TLS(tlsdf, stageIndices, stageNames):
     axDist = fig.add_subplot(gs[0:2,1])
     axCyclic = fig.add_subplot(gs[3:6,:])
     axPlan = fig.add_subplot(gs[6:9,:])
-
 
     '''
     Notes on the widgets:
@@ -328,13 +333,12 @@ def clusterPlot_TLS(tlsdf, stageIndices, stageNames):
     plot_signalPlan(axPlan, time_slider, tlsnp, stages)
 
     axDist.set_title('Green Duration Distribution', fontweight = 'bold')
-    plot_greenTimeDistribution(axDist, time_slider, tlsnp, stages, num_bins = 10, bar_colours = ['m', 'c'])
+    plot_greenTimeDistribution(axDist, time_slider, tlsnp, stages, num_bins, bar_colours)
 
-    cyclicity_type = 1
     axCyclic.set_title('Cyclicity plot using the {} definition'.format('first' if cyclicity_type == 1 else 'second'), fontweight ='bold')
-    plot_cyclicity(axCyclic, time_slider, tlsnp, stages, cyclicity_type, bar_colours = ['m', 'c'])
+    plot_cyclicity(axCyclic, time_slider, tlsnp, stages, cyclicity_type, bar_colours)
 
     axSplit.set_title('Green Split', fontweight = 'bold')
-    plot_greenTimeSplit(axSplit, time_slider, tlsnp, stages, bar_colours = ['m', 'c'])
+    plot_greenTimeSplit(axSplit, time_slider, tlsnp, stages, bar_colours)
     
     return time_slider, button, radio1, radio2
