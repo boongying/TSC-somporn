@@ -24,7 +24,6 @@ SOFTWARE.
 This software is intended to be freely shared among Oguchi Lab members for research purposes
 '''
 
-from itertools import filterfalse
 import statistics
 import pandas as pd
 import numpy as np
