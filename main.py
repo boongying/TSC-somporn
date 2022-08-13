@@ -2,7 +2,7 @@
 import pandas as pd
 import matplotlib.pyplot as plt
 from plot_functions import clusterPlot_TLS
-tlsdf = pd.read_xml('TLSrecord.xml')
+tlsdf = pd.read_xml('./data/tlsrecord5_dt3.xml')
 stageIndices = [0,0,0,1,1,1,0,0,0,1,1,1,1,0,1,0]
 stageNames = ['North-South','West-East']
 

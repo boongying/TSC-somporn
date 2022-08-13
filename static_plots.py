@@ -8,7 +8,12 @@ stageIndices = [0,0,0,1,1,1,0,0,0,1,1,1,1,0,1,0]
 stageNames = ['North-South','West-East']
 bar_colours = ['c','m']
 
-tlsdf = pd.read_xml('TLSrecord1.xml')
+exp_num = 5
+dt_num = 3
+deltaT = [6,10,14,18]
+save_dir = r'C:\Users\boong\OneDrive\Toudai_DoctoralStudies\doctoral_research\D1'
+
+tlsdf = pd.read_xml('./data/tlsrecord{}_dt{}.xml'.format(exp_num,dt_num))
 
 #just to change column name 'phase' to 'subStageID'
 colnames = tlsdf.columns.to_series()
@@ -26,7 +31,7 @@ There are 2 variations of cyclicity plot
 2) A vertical bar is stacked until all stages are in the bar.
 '''
 
-fig, axes = plt.subplots(figsize = (10,10), ncols = 1, nrows = max(stageIndices) + 2)
+fig, axes = plt.subplots(figsize = (10,12), ncols = 1, nrows = max(stageIndices) + 2)
 
 greenSubStages = {}
 for column in  stages:
@@ -69,7 +74,7 @@ for st_stage, ax in enumerate(axes[:-1]):
     ax.set_ylabel('Cycle split (-)')
     ax.xaxis.grid(True)
 
-    ax.set_xlim(0,5000)
+    ax.set_xlim(0,3900)
     ax.set_ylim(0,1)
     ax.set_aspect(1000, adjustable='box')
 
@@ -81,17 +86,25 @@ plt.legend(by_label.values(), by_label.keys(),
             borderaxespad = 0)
 
 # plot for state history
-s_rl = pd.read_csv('s.csv', index_col = 0)
-s_rl['time'] = np.arange(0,s_rl.shape[0]*10-1,10)
-s_rl['West-East'] = s_rl[['0','2']].max(axis = 1)
-s_rl['North-South'] = s_rl[['1','3']].max(axis = 1)
+s_rl = pd.read_csv('./data/hist_exp{}_dt{}_run0.csv'.format(exp_num,dt_num))
+s_rl['West-East'] = s_rl[['Queue_W','Queue_E']].sum(axis = 1)
+s_rl['North-South'] = s_rl[['Queue_N','Queue_S']].sum(axis = 1)
 
 axes[-1].step(s_rl['time'],s_rl['North-South'], linewidth = 0.9,color = 'c')
 axes[-1].step(s_rl['time'],s_rl['West-East'], linewidth = 0.9, color = 'm')
-
 axes[-1].set_xlabel('Simulation time (s)')
-axes[-1].set_ylabel('Critical queuing number (veh)')
+axes[-1].set_ylabel('Sum of queue by stage (veh)')
 axes[-1].xaxis.grid(True)
-axes[-1].set_xlim(0,5000)
+axes[-1].set_title('Aggregated information available to RL agent')
+axes[-1].set_xlim(0,3900)
 
-plt.show()
+ax2 = axes[-1].twinx()
+ax2.plot(s_rl['time'],s_rl['reward'], label = "Reward",linewidth = 0.9, color = 'gray')
+ax2.set_ylabel('Reward (veh)')
+ax2.set_ylim(-30,0)
+ax2.legend(bbox_to_anchor = (0.00,0.5), loc = 'center left')
+
+fig.suptitle('Exp. set {} $\Delta t = {} sec.$'.format(exp_num, deltaT[dt_num]))
+
+plt.savefig(save_dir + "/summary_exp{}_dt{}".format(exp_num,dt_num))
+plt.close('all')
