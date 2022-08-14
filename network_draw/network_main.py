@@ -1,5 +1,6 @@
 from network_draw.network_functions import *
 import matplotlib.pyplot as plt
+import pandas as pd
 
 WIDTH, HEIGHT = 600, 600
 
@@ -16,11 +17,20 @@ input_params =  {'NUM_HORIZ': 4,             #Num. roads
                 'ART_COLOURMAP': plt.cm.gnuplot} #Arterial plot pyplot colormap
 
 #Meta parameters
-horiz_pos = list(np.linspace(input_params['MARGIN_TO_CENTRE'], 1-input_params['MARGIN_TO_CENTRE'], input_params['NUM_HORIZ']))
-verti_pos = list(np.linspace(input_params['MARGIN_TO_CENTRE'], 1-input_params['MARGIN_TO_CENTRE'], input_params['NUM_VERTI']))
+horiz_pos = list(np.linspace(input_params['MARGIN_TO_CENTRE'],
+                             1-input_params['MARGIN_TO_CENTRE'],
+                             input_params['NUM_HORIZ']))
 
-horiz_pos_full = [input_params['MARGIN_TO_PLOTEDGE']] + horiz_pos + [1-input_params['MARGIN_TO_PLOTEDGE']]
-verti_pos_full = [input_params['MARGIN_TO_PLOTEDGE']] + verti_pos + [1-input_params['MARGIN_TO_PLOTEDGE']]
+verti_pos = list(np.linspace(1-input_params['MARGIN_TO_CENTRE'],
+                             input_params['MARGIN_TO_CENTRE'],
+                             input_params['NUM_VERTI']))
+
+horiz_pos_full = [input_params['MARGIN_TO_PLOTEDGE']] \
++ horiz_pos\
++ [1-input_params['MARGIN_TO_PLOTEDGE']]
+verti_pos_full = [1-input_params['MARGIN_TO_PLOTEDGE']] \
++ verti_pos\
++ [input_params['MARGIN_TO_PLOTEDGE']]
 
 meta_params = {'HORIZ_POS': horiz_pos,
               'VERTI_POS': verti_pos,
@@ -29,7 +39,7 @@ meta_params = {'HORIZ_POS': horiz_pos,
 
 
 
-with cairo.SVGSurface("./network_draw/example.svg", WIDTH, HEIGHT) as surface:
+with cairo.SVGSurface("./network_draw/weight.svg", WIDTH, HEIGHT) as surface:
     ctx = cairo.Context(surface)
 
     ctx.scale(WIDTH, HEIGHT)  # Normalizing the canvas
@@ -42,12 +52,22 @@ with cairo.SVGSurface("./network_draw/example.svg", WIDTH, HEIGHT) as surface:
     
     draw_network(ctx, input_params, meta_params)
     shade_intersection(ctx, input_params, meta_params)
-    label_intersection(ctx, input_params, meta_params, position = 'out_corner') #3 options 'centre', 'in_corner' and 'out_corner'
+    label_intersection(ctx, input_params, meta_params, position = 'in_corner')
+    #3 options 'centre', 'in_corner' and 'out_corner'
     shade_outer_nodes(ctx, input_params, meta_params)
-    label_outer_nodes(ctx, input_params, meta_params, position = 'out_middle')#3 options 'centre', 'in_rim' and 'out_middle'
-    draw_edge_label(ctx, input_params, meta_params)
+    label_outer_nodes(ctx, input_params, meta_params, position = 'in_rim')
+    #3 options 'centre', 'in_rim' and 'out_middle'
+    
+    weights = pd.read_excel("./network_draw/weight.xlsx",sheet_name="Sheet1",index_col=0)
+    w = weights.to_numpy()
+    adj = pd.read_excel("./network_draw/data0508.xlsx",sheet_name="adj",index_col=0).to_numpy()
+    w[adj==0] = np.NaN
+    weights.loc[:] = w
+    # weights = pd.read_excel("./network_draw/data0508.xlsx",sheet_name="exp",index_col=0)
+    draw_edge_label(ctx, weights, input_params, meta_params)
 
     arteries = [['0_1','1_1','1_2','1_3','1_4','0_4'],
-                ['2_3','2_4','3_4','4_4','4_3','3_3','3_2','2_2','2_1','3_1','4_1','4_2','5_2']]
-    draw_arteries(ctx,arteries, input_params, meta_params)
+                ['2_3','2_4','3_4','4_4','4_3','3_3',
+                 '3_2','2_2','2_1','3_1','4_1','4_2','5_2']]
+    # draw_arteries(ctx,arteries, input_params, meta_params)
         

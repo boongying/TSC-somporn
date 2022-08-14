@@ -1,7 +1,7 @@
 import numpy as np
 import math
 import cairo
-import pandas as pd
+from itertools import product
 
 def draw_network(ctx, input_params, meta_params):
     half_roadwidth = input_params['HALF_ROADWIDTH']
@@ -48,7 +48,8 @@ def shade_intersection(ctx, input_params, meta_params):
     verti_pos = meta_params['VERTI_POS']
     for h in horiz_pos:
         for v in verti_pos:
-            ctx.rectangle(h-half_roadwidth, v-half_roadwidth, margin_to_plotedge, margin_to_plotedge)
+            ctx.rectangle(h-half_roadwidth, v-half_roadwidth,
+                          margin_to_plotedge, margin_to_plotedge)
             
     pat = cairo.SolidPattern(colour[0], colour[1], colour[2], colour[3])
     ctx.set_source(pat)
@@ -57,24 +58,30 @@ def shade_intersection(ctx, input_params, meta_params):
 
 def label_intersection(ctx, input_params, meta_params, position = 'out_corner'):
     half_roadwidth = input_params['HALF_ROADWIDTH']
-    colour = input_params['LINE_COLOUR']
+    colour_light = input_params['BG_COLOUR']
+    colour_dark = input_params['LINE_COLOUR']
     
     horiz_pos = meta_params['HORIZ_POS']
     verti_pos = meta_params['VERTI_POS']
     
     ctx.select_font_face("Bahnschrift", cairo.FONT_SLANT_NORMAL, 
         cairo.FONT_WEIGHT_BOLD)
-    ctx.set_source_rgba(colour[0], colour[1], colour[2], colour[3])
     ctx.set_font_size(half_roadwidth*0.8)
 
     for i,h in enumerate(horiz_pos, start = 1):
         for j,v in enumerate(verti_pos,start = 1):
             (x, y, width, height, dx, dy) = ctx.text_extents("%d,%d"%(i,j))
             if position == 'centre':
+                ctx.set_source_rgba(colour_light[0], colour_light[1],
+                                    colour_light[2], colour_light[3])
                 ctx.move_to(h-width/1.8, v+height/3)
             elif position == 'in_corner':
+                ctx.set_source_rgba(colour_light[0], colour_light[1],
+                                    colour_light[2], colour_light[3])
                 ctx.move_to(h-width, v+height)
             elif position == 'out_corner':
+                ctx.set_source_rgba(colour_dark[0], colour_dark[1],
+                                    colour_dark[2], colour_dark[3])
                 ctx.move_to(h-2.2*half_roadwidth, v-1.3*half_roadwidth)
             ctx.show_text("%d,%d"%(i,j))
 
@@ -116,26 +123,30 @@ def label_outer_nodes(ctx, input_params, meta_params, position = 'out_corner'):
         cairo.FONT_WEIGHT_BOLD)
     ctx.set_font_size(half_roadwidth*0.8)
     for i,h in enumerate(horiz_pos,start = 1):
-        (x, y, width, height, dx, dy) = ctx.text_extents("%d,%d"%(i,0))
+        (x, y, width, height, dx, dy) = ctx.text_extents("%d,%d"%(i,num_verti+1))
         if position == 'centre':
-            ctx.set_source_rgba(colour_light[0], colour_light[1], colour_light[2], colour_light[3])
+            ctx.set_source_rgba(colour_light[0], colour_light[1],
+                                colour_light[2], colour_light[3])
             ctx.move_to(h-width/2, margin_to_plotedge+0.01)
         elif position == 'in_rim':
-            ctx.set_source_rgba(colour_light[0], colour_light[1], colour_light[2], colour_light[3])
+            ctx.set_source_rgba(colour_light[0], colour_light[1],
+                                colour_light[2], colour_light[3])
             ctx.move_to(h-width*0.9, margin_to_plotedge*1.4)
         elif position == 'out_middle':
-            ctx.set_source_rgba(colour_dark[0], colour_dark[1], colour_dark[2], colour_dark[3])
+            ctx.set_source_rgba(colour_dark[0], colour_dark[1],
+                                colour_dark[2], colour_dark[3])
             ctx.move_to(h-2.1*half_roadwidth, margin_to_plotedge/1.25)
-        ctx.show_text("%d,%d"%(i,0))
+        ctx.show_text("%d,%d"%(i,num_verti+1))
+
         
-        (x, y, width, height, dx, dy) = ctx.text_extents("%d,%d"%(i,num_verti+1))
+        (x, y, width, height, dx, dy) = ctx.text_extents("%d,%d"%(i,0))
         if position == 'centre':
             ctx.move_to(h-width/2, 1-margin_to_plotedge+0.01)
         elif position == 'in_rim':
             ctx.move_to(h-width*0.9, 1-margin_to_plotedge/1.6)
         elif position == 'out_middle':
             ctx.move_to(h-2.1*half_roadwidth, 1-margin_to_plotedge*1.25)
-        ctx.show_text("%d,%d"%(i,num_verti+1))
+        ctx.show_text("%d,%d"%(i,0))
     
     for j,v in enumerate(verti_pos,start = 1):
         (x, y, width, height, dx, dy) = ctx.text_extents("%d,%d"%(0,j))
@@ -166,23 +177,27 @@ def edge_pos(A,B, meta_params):
     edge_h = (horiz_pos_full[Ai] + horiz_pos_full[Bi])/2
     return edge_h, edge_v
 
-def draw_edge_label(ctx, input_params, meta_params):
+
+
+def draw_edge_label(ctx, df_weights, input_params, meta_params):
+    num_horiz = input_params['NUM_HORIZ']
+    num_verti = input_params['NUM_VERTI']
     half_roadwidth = input_params['HALF_ROADWIDTH']
     colour = input_params['LINE_COLOUR']
 
     ctx.set_source_rgba(colour[0], colour[1], colour[2], colour[3])
     ctx.select_font_face("Arial", cairo.FONT_SLANT_NORMAL, 
         cairo.FONT_WEIGHT_BOLD)
-    ctx.set_font_size(half_roadwidth)
+    ctx.set_font_size(half_roadwidth/1.2)
 
-    weights = pd.read_excel("./network_draw/data0508.xlsx",sheet_name="exp",index_col=0)
-    adj = np.where(np.triu(weights.to_numpy())>0)
     
+    adj = np.where(~np.isnan(df_weights.to_numpy()))
     for m,n in zip(adj[0],adj[1]):
-        edge_h, edge_v = edge_pos(weights.index[m], weights.columns[n], meta_params)
-        (x, y, width, height, dx, dy) = ctx.text_extents("%.2f" %weights.iloc[m,n])
+        edge_h, edge_v = edge_pos(df_weights.index[m], df_weights.columns[n], meta_params)
+        (x, y, width, height, dx, dy) = ctx.text_extents("+%.2f" %df_weights.iloc[m,n]\
+                                        if df_weights.iloc[m,n]>0 else "%.2f" %df_weights.iloc[m,n])
         ctx.move_to(edge_h-dx/2, edge_v+height/2)
-        ctx.show_text("%.2f" %weights.iloc[m,n])
+        ctx.show_text("+%.2f" %df_weights.iloc[m,n] if df_weights.iloc[m,n]>0 else "%.2f" %df_weights.iloc[m,n])
         
 def draw_arteries(ctx, arts, input_params, meta_params):
     half_roadwidth = input_params['HALF_ROADWIDTH']
