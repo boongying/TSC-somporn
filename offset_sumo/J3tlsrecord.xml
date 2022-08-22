@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!-- generated on 2022-08-22 15:29:03 by Eclipse SUMO GUI Version 1.13.0
+<configuration xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/sumoConfiguration.xsd">
+
+    <input>
+        <net-file value="C:\Users\boong\Documents\GitHub\TSC-somporn\offset_sumo\double.net.xml"/>
+        <route-files value="C:\Users\boong\Documents\GitHub\TSC-somporn\offset_sumo\double.rou.xml"/>
+        <additional-files value="C:\Users\boong\Documents\GitHub\TSC-somporn\offset_sumo\newdouble.add.xml,C:\Users\boong\Documents\GitHub\TSC-somporn\offset_sumo\export_tlsrecord.add.xml"/>
+    </input>
+
+    <time>
+        <begin value="0"/>
+        <step-length value="0.25"/>
+    </time>
+
+    <processing>
+        <emergencydecel.warning-threshold value="1.1"/>
+    </processing>
+
+    <report>
+        <verbose value="true"/>
+        <no-warnings value="true"/>
+        <duration-log.disable value="true"/>
+        <no-step-log value="true"/>
+    </report>
+
+    <random_number>
+        <random value="true"/>
+    </random_number>
+
+    <gui_only>
+        <tracker-interval value="0.25"/>
+    </gui_only>
+
+</configuration>
+-->
+
+<tlsStates xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/tlsstates_file.xsd">
+    <tlsState time="0.00" id="J3" programID="0" phase="2" state="rrrGGGrrrGGG"/>
+    <tlsState time="5.00" id="J3" programID="0" phase="3" state="rrryyyrrryyy"/>
+    <tlsState time="8.00" id="J3" programID="0" phase="0" state="GGGrrrGGGrrr"/>
+    <tlsState time="13.00" id="J3" programID="0" phase="1" state="yyyrrryyyrrr"/>
+    <tlsState time="16.00" id="J3" programID="0" phase="2" state="rrrGGGrrrGGG"/>
+    <tlsState time="21.00" id="J3" programID="0" phase="3" state="rrryyyrrryyy"/>
+    <tlsState time="24.00" id="J3" programID="0" phase="0" state="GGGrrrGGGrrr"/>
+    <tlsState time="29.00" id="J3" programID="0" phase="1" state="yyyrrryyyrrr"/>
+    <tlsState time="32.00" id="J3" programID="0" phase="2" state="rrrGGGrrrGGG"/>
+    <tlsState time="38.00" id="J3" programID="0" phase="3" state="rrryyyrrryyy"/>
+    <tlsState time="41.00" id="J3" programID="0" phase="0" state="GGGrrrGGGrrr"/>
+    <tlsState time="46.00" id="J3" programID="0" phase="1" state="yyyrrryyyrrr"/>
+    <tlsState time="49.00" id="J3" programID="0" phase="2" state="rrrGGGrrrGGG"/>
+    <tlsState time="54.00" id="J3" programID="0" phase="3" state="rrryyyrrryyy"/>
+    <tlsState time="57.00" id="J3" programID="0" phase="0" state="GGGrrrGGGrrr"/>
+    <tlsState time="66.00" id="J3" programID="0" phase="1" state="yyyrrryyyrrr"/>
+    <tlsState time="69.00" id="J3" programID="0" phase="2" state="rrrGGGrrrGGG"/>
+    <tlsState time="77.00" id="J3" programID="0" phase="3" state="rrryyyrrryyy"/>
+    <tlsState time="80.00" id="J3" programID="0" phase="0" state="GGGrrrGGGrrr"/>
+    <tlsState time="96.00" id="J3" programID="0" phase="1" state="yyyrrryyyrrr"/>
+    <tlsState time="99.00" id="J3" programID="0" phase="2" state="rrrGGGrrrGGG"/>
+    <tlsState time="105.00" id="J3" programID="0" phase="3" state="rrryyyrrryyy"/>
+    <tlsState time="108.00" id="J3" programID="0" phase="0" state="GGGrrrGGGrrr"/>
+    <tlsState time="113.00" id="J3" programID="0" phase="1" state="yyyrrryyyrrr"/>
+    <tlsState time="116.00" id="J3" programID="0" phase="2" state="rrrGGGrrrGGG"/>
+    <tlsState time="124.00" id="J3" programID="0" phase="3" state="rrryyyrrryyy"/>
+    <tlsState time="127.00" id="J3" programID="0" phase="0" state="GGGrrrGGGrrr"/>
+    <tlsState time="135.00" id="J3" programID="0" phase="1" state="yyyrrryyyrrr"/>
+    <tlsState time="138.00" id="J3" programID="0" phase="2" state="rrrGGGrrrGGG"/>
+    <tlsState time="146.00" id="J3" programID="0" phase="3" state="rrryyyrrryyy"/>
+    <tlsState time="149.00" id="J3" programID="0" phase="0" state="GGGrrrGGGrrr"/>
+    <tlsState time="158.00" id="J3" programID="0" phase="1" state="yyyrrryyyrrr"/>
+    <tlsState time="161.00" id="J3" programID="0" phase="2" state="rrrGGGrrrGGG"/>
+    <tlsState time="166.00" id="J3" programID="0" phase="3" state="rrryyyrrryyy"/>
+    <tlsState time="169.00" id="J3" programID="0" phase="0" state="GGGrrrGGGrrr"/>
+    <tlsState time="176.00" id="J3" programID="0" phase="1" state="yyyrrryyyrrr"/>
+    <tlsState time="179.00" id="J3" programID="0" phase="2" state="rrrGGGrrrGGG"/>
+    <tlsState time="194.00" id="J3" programID="0" phase="3" state="rrryyyrrryyy"/>
+    <tlsState time="197.00" id="J3" programID="0" phase="0" state="GGGrrrGGGrrr"/>
+    <tlsState time="211.00" id="J3" programID="0" phase="1" state="yyyrrryyyrrr"/>
+    <tlsState time="214.00" id="J3" programID="0" phase="2" state="rrrGGGrrrGGG"/>
+    <tlsState time="225.00" id="J3" programID="0" phase="3" state="rrryyyrrryyy"/>
+    <tlsState time="228.00" id="J3" programID="0" phase="0" state="GGGrrrGGGrrr"/>
+    <tlsState time="238.00" id="J3" programID="0" phase="1" state="yyyrrryyyrrr"/>
+    <tlsState time="241.00" id="J3" programID="0" phase="2" state="rrrGGGrrrGGG"/>
+    <tlsState time="246.00" id="J3" programID="0" phase="3" state="rrryyyrrryyy"/>
+    <tlsState time="249.00" id="J3" programID="0" phase="0" state="GGGrrrGGGrrr"/>
+    <tlsState time="254.00" id="J3" programID="0" phase="1" state="yyyrrryyyrrr"/>
+    <tlsState time="257.00" id="J3" programID="0" phase="2" state="rrrGGGrrrGGG"/>
+    <tlsState time="266.00" id="J3" programID="0" phase="3" state="rrryyyrrryyy"/>
+    <tlsState time="269.00" id="J3" programID="0" phase="0" state="GGGrrrGGGrrr"/>
+    <tlsState time="284.00" id="J3" programID="0" phase="1" state="yyyrrryyyrrr"/>
+    <tlsState time="287.00" id="J3" programID="0" phase="2" state="rrrGGGrrrGGG"/>
+    <tlsState time="292.00" id="J3" programID="0" phase="3" state="rrryyyrrryyy"/>
+    <tlsState time="295.00" id="J3" programID="0" phase="0" state="GGGrrrGGGrrr"/>
+    <tlsState time="302.00" id="J3" programID="0" phase="1" state="yyyrrryyyrrr"/>
+    <tlsState time="305.00" id="J3" programID="0" phase="2" state="rrrGGGrrrGGG"/>
+    <tlsState time="313.00" id="J3" programID="0" phase="3" state="rrryyyrrryyy"/>
+    <tlsState time="316.00" id="J3" programID="0" phase="0" state="GGGrrrGGGrrr"/>
+    <tlsState time="333.00" id="J3" programID="0" phase="1" state="yyyrrryyyrrr"/>
+    <tlsState time="336.00" id="J3" programID="0" phase="2" state="rrrGGGrrrGGG"/>
+</tlsStates>
