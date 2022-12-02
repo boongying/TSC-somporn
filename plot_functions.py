@@ -74,7 +74,7 @@ def tlsNumpy(tlsdf: pd.DataFrame,
     greenSubStages = {}
     amberRedRows = pd.Series([False for _ in range(tlsdf.shape[0])])
     for column in  stages:
-        greenSubStages[column] = stages[column].loc[stages[column] == 'g'].index.to_list()
+        greenSubStages[column] = stages[column].loc[stages[column] == 'G'].index.to_list()
         greenRows = (tlsdf['subStageID'] == greenSubStages[column][0])
         greenTimes = pd.concat([pd.Series(tlsdf.loc[tlsdf.index[1:],'time'].to_numpy() - tlsdf.loc[tlsdf.index[:-1],'time'].to_numpy()),
                                pd.Series([float('nan')],index = [tlsdf.index.max()])])

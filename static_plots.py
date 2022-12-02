@@ -1,19 +1,24 @@
-import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from plot_functions import tlsStages, tlsNumpy
+import itertools
+
+#DO note that g and G makes tons of differences and leading to bugs
 
 #Defining the stages
-stageIndices = [0,0,0,1,1,1,0,0,0,1,1,1,1,0,1,0]
-stageNames = ['North-South','West-East']
-bar_colours = ['c','m']
+stageIndices = [2,2,3,0,0,1,2,2,3,0,0,1]
+stageNames = ['WE_ls','WE_r','NS_ls','NS_r']
+# bar_colours = ['salmon','olive','lime','plum']
+bar_colours = ['c','y','m','k']
 
-exp_num = 5
-dt_num = 3
-deltaT = [6,10,14,18]
-save_dir = r'C:\Users\boong\OneDrive\Toudai_DoctoralStudies\doctoral_research\D1'
+
+exp_num = 3
+dt_num = 6
 
 tlsdf = pd.read_xml('./data/tlsrecord{}_dt{}.xml'.format(exp_num,dt_num))
+
+#leave out the warm-period
+tlsdf = tlsdf.loc[tlsdf['time']>=150].reset_index(drop=True)
 
 #just to change column name 'phase' to 'subStageID'
 colnames = tlsdf.columns.to_series()
@@ -31,16 +36,16 @@ There are 2 variations of cyclicity plot
 2) A vertical bar is stacked until all stages are in the bar.
 '''
 
-fig, axes = plt.subplots(figsize = (10,12), ncols = 1, nrows = max(stageIndices) + 2)
+fig, axes = plt.subplots(figsize = (30,18), ncols = 2, nrows = max(stageIndices) + 3)
 
 greenSubStages = {}
 for column in  stages:
-    greenSubStages[column] = stages[column].loc[stages[column] == 'g'].index.to_list()
+    greenSubStages[column] = stages[column].loc[stages[column] == 'G'].index.to_list()
 flattenedGreen = [i for j in list(greenSubStages.values()) for i in j]
-bar_colours = pd.Series(bar_colours, index = flattenedGreen) # watch out, this may not work when a stage is green at more than 1 subStages
+pdbar_colours = pd.Series(bar_colours, index = flattenedGreen) # watch out, this may not work when a stage is green at more than 1 subStages
 bar_names = pd.Series(stageNames, index = flattenedGreen) # watch out, this may not work when a stage is green at more than 1 subStages
 
-for st_stage, ax in enumerate(axes[:-1]):
+for st_stage, ax in enumerate(axes[:-2,0]):
     tlsnp_cut = tlsnp[tlsnp[:,1].tolist().index(flattenedGreen[st_stage]):]
     bar_loc = tlsnp_cut[0,0]
     storage = []
@@ -56,7 +61,7 @@ for st_stage, ax in enumerate(axes[:-1]):
                     height = cycle_temp[k]/sum(cycle_temp), 
                     bottom = sum(cycle_temp[:k])/sum(cycle_temp),
                     width = sum(cycle_temp),
-                    color = bar_colours[tlsnp_cut[j, 1]], 
+                    color = pdbar_colours[tlsnp_cut[j, 1]], 
                     align = 'edge',
                     alpha = 0.4,
                     label = bar_names[tlsnp_cut[j, 1]])
@@ -76,7 +81,7 @@ for st_stage, ax in enumerate(axes[:-1]):
 
     ax.set_xlim(0,3900)
     ax.set_ylim(0,1)
-    ax.set_aspect(1000, adjustable='box')
+    ax.set_aspect(50, adjustable='box')
 
 plt.sca(axes[0])
 handles, labels = plt.gca().get_legend_handles_labels()
@@ -85,26 +90,42 @@ plt.legend(by_label.values(), by_label.keys(),
             bbox_to_anchor = (1.0,1.05), loc = 'lower right',
             borderaxespad = 0)
 
-# plot for state history
+#%% plot for state history
 s_rl = pd.read_csv('./data/hist_exp{}_dt{}_run0.csv'.format(exp_num,dt_num))
-s_rl['West-East'] = s_rl[['Queue_W','Queue_E']].sum(axis = 1)
-s_rl['North-South'] = s_rl[['Queue_N','Queue_S']].sum(axis = 1)
 
-axes[-1].step(s_rl['time'],s_rl['North-South'], linewidth = 0.9,color = 'c')
-axes[-1].step(s_rl['time'],s_rl['West-East'], linewidth = 0.9, color = 'm')
-axes[-1].set_xlabel('Simulation time (s)')
-axes[-1].set_ylabel('Sum of queue by stage (veh)')
-axes[-1].xaxis.grid(True)
-axes[-1].set_title('Aggregated information available to RL agent')
-axes[-1].set_xlim(0,3900)
+stageNames = ['WE_ls','WE_r','NS_ls','NS_r']
+longStageNames = ['West-East: Left & Through','West-East: Right','North-South: Left & Through','North-South: Right']
 
-ax2 = axes[-1].twinx()
-ax2.plot(s_rl['time'],s_rl['reward'], label = "Reward",linewidth = 0.9, color = 'gray')
-ax2.set_ylabel('Reward (veh)')
-ax2.set_ylim(-30,0)
-ax2.legend(bbox_to_anchor = (0.00,0.5), loc = 'center left')
+s_rl[longStageNames[0]] = s_rl[['Queue_W_l','Queue_W_s','Queue_E_l','Queue_E_s']].sum(axis = 1)
+s_rl[longStageNames[1]] = s_rl[['Queue_W_r','Queue_E_r']].sum(axis = 1)
+s_rl[longStageNames[2]] = s_rl[['Queue_N_l','Queue_N_s','Queue_S_l','Queue_S_s']].sum(axis = 1)
+s_rl[longStageNames[3]] = s_rl[['Queue_N_r','Queue_S_r']].sum(axis = 1)
 
-fig.suptitle('Exp. set {} $\Delta t = {} sec.$'.format(exp_num, deltaT[dt_num]))
+for i, longName in enumerate(longStageNames):
+    axes[i,1].step(s_rl['time'],s_rl[longName], linewidth = 0.9,color = bar_colours[i])
+    axes[i,1].set_xlabel('Simulation time (s)')
+    axes[i,1].set_ylabel('Sum of queue by stage (veh)')
+    axes[i,1].xaxis.grid(True)
+    axes[i,1].set_title('Aggregated information available to RL agent')
+    axes[i,1].set_xlim(0,3900)
 
-plt.savefig(save_dir + "/summary_exp{}_dt{}".format(exp_num,dt_num))
+    ax2 = axes[i,1].twinx()
+    ax2.plot(s_rl['time'],s_rl['reward'], label = "Reward",linewidth = 0.9, color = 'gray')
+    ax2.set_ylabel('Reward (veh)')
+    ax2.set_ylim(-30,0)
+    ax2.legend(bbox_to_anchor = (0.00,0.5), loc = 'center left')
+
+#%% ploy for evaluation matrices
+eval_e3 = pd.read_csv('./data/eval_exp{}_dt{}_run0.csv'.format(exp_num,dt_num))
+for i, ax in enumerate(list(itertools.chain.from_iterable(axes[-2:]))):
+    ax.step(x = eval_e3['to_time'], y = eval_e3.iloc[:,i+1],
+            linewidth = 1.2, where='post')
+    ax.grid('on')
+
+
+
+#%% save figure
+fig.suptitle('Exp. set {} $\Delta t = {} sec.$'.format(exp_num, dt_num))
+
+plt.savefig("summary_exp{}_dt{}".format(exp_num,dt_num))
 plt.close('all')
