@@ -9,23 +9,34 @@ import itertools
 #Defining the stages
 stageIndices = [2,2,3,0,0,1,2,2,3,0,0,1]
 stageNames = ['WE_ls','WE_r','NS_ls','NS_r']
+longStageNames = ['West-East: Left & Through','West-East: Right','North-South: Left & Through','North-South: Right']
 # bar_colours = ['salmon','olive','lime','plum']
 bar_colours = ['c','y','m','k']
-
 
 exp_num = 7
 eps = 31
 
 tlsdf = pd.read_xml('./data/exp{}_tlsrecord_episode{}.xml'.format(exp_num,eps))
 
-#leave out the warm-period
-tlsdf = tlsdf.loc[tlsdf['time']>=150].reset_index(drop=True)
+#change all the subStageID of the fixed time program
+newids = [1, 2, 3, 4, 0, 5, 6, 7, 8, 0]
+oldtls = tlsdf.copy()
+for oldID, newID in enumerate(newids):
+    tlsdf.loc[(tlsdf['programID'] == 'Fixed') & (oldtls['phase'] == oldID), 'phase'] = newID
+del oldtls, newids
+
 
 #just to change column name 'phase' to 'subStageID'
 colnames = tlsdf.columns.to_series()
 colnames.loc[colnames == 'phase'] = 'subStageID'
 tlsdf.columns = colnames
 del colnames
+
+#adding last row
+last_row = tlsdf.loc[(tlsdf['subStageID'] == 0),:].iloc[0].to_frame().T
+last_row['time'] = 3750.0
+tlsdf = pd.concat([tlsdf,last_row], ignore_index = True, axis = 0)
+
 stages = tlsStages(tlsdf, stageIndices, stageNames, definition = 'mode')
 tlsnp = tlsNumpy(tlsdf, stages)
 
@@ -74,7 +85,7 @@ plt.close('all')
 #%% plot for state history
 fig, axes = plt.subplots(figsize = (15,10), ncols = 1, nrows = 3, sharex = True)
 plotGrouping = [['WE_ls','WE_r'],['NS_ls','NS_r']]
-longStageNames = ['West-East: Left & Through','West-East: Right','North-South: Left & Through','North-South: Right']
+
 
 axes[0].step(s_rl['time'],s_rl['reward'], label = "Reward",linewidth = 0.9, color = 'gray')
 axes[0].set_ylabel('$[veh]$')
@@ -113,54 +124,55 @@ There are 2 variations of cyclicity plot
 1) A vertical bar is stacked until the same stage is recurred (default).
 2) A vertical bar is stacked until all stages are in the bar.
 '''
-fig, axes = plt.subplots(figsize = (30,18), ncols = 2, nrows = 3)
+fig, ax = plt.subplots(figsize = (20,8))
 
 greenSubStages = {}
 for column in  stages:
     greenSubStages[column] = stages[column].loc[stages[column] == 'G'].index.to_list()
 flattenedGreen = [i for j in list(greenSubStages.values()) for i in j]
 pdbar_colours = pd.Series(bar_colours, index = flattenedGreen) # watch out, this may not work when a stage is green at more than 1 subStages
-bar_names = pd.Series(stageNames, index = flattenedGreen) # watch out, this may not work when a stage is green at more than 1 subStages
+bar_names = pd.Series(longStageNames, index = flattenedGreen) # watch out, this may not work when a stage is green at more than 1 subStages
 
-for st_stage, ax in enumerate(axes[:-2,0]):
-    tlsnp_cut = tlsnp[tlsnp[:,1].tolist().index(flattenedGreen[st_stage]):]
-    bar_loc = tlsnp_cut[0,0]
-    storage = []
-    cycle_temp = []
-    index_temp = []
-    for i in range(tlsnp_cut.shape[0]-1):
-        storage.append(tlsnp_cut[i,1])
-        cond1 = any([storage.count(subStageID) > 1 for subStageID in stages.index]) and cyclicity == 1 # the condition for first varition of plot
-        cond2 = all([subStageID in storage for subStageID in stages.index]) and cyclicity == 2 # the condition for second varition of plot
-        if cond1 or cond2:
-            for k,j in enumerate(index_temp):
-                ax.bar(x = bar_loc,
-                    height = cycle_temp[k]/sum(cycle_temp), 
-                    bottom = sum(cycle_temp[:k])/sum(cycle_temp),
-                    width = sum(cycle_temp),
-                    color = pdbar_colours[tlsnp_cut[j, 1]], 
-                    align = 'edge',
-                    alpha = 0.4,
-                    label = bar_names[tlsnp_cut[j, 1]])
-            ax.axvline(bar_loc, linewidth =1, alpha = 0.4, color = 'k')
-            storage = [tlsnp_cut[i,1]]
-            bar_loc = tlsnp_cut[i,0]
-            cycle_temp = []
-            index_temp = []
 
-        if tlsnp_cut[i, 1] in flattenedGreen:
-            cycle_temp.append(tlsnp_cut[i+1,0] - tlsnp_cut[i,0])
-            index_temp.append(i)
+bar_loc =  tlsnp[0,0]
+storage = []
+cycle_temp = []
+index_temp = []
+for i in range(tlsnp.shape[0]):
+    storage.append(tlsnp[i,1])
+    cond1 = any([storage.count(subStageID[0]) > 1 for subStageID in greenSubStages.values()]) and cyclicity == 1 # the condition for first varition of plot
+    cond2 = all([subStageID[0] in storage for subStageID in greenSubStages.values()]) and cyclicity == 2 # the condition for second varition of plot
+    terminal = (i == tlsnp.shape[0]-1)
+    if cond1 or cond2 or terminal:
+        for k,j in enumerate(index_temp):
+            ax.bar(x = bar_loc,
+                height = cycle_temp[k]/sum(cycle_temp), 
+                bottom = sum(cycle_temp[:k])/sum(cycle_temp),
+                width = sum(cycle_temp),
+                color = pdbar_colours[tlsnp[j, 1]], 
+                align = 'edge',
+                alpha = 0.7,
+                label = bar_names[tlsnp[j, 1]])
+        ax.axvline(bar_loc, linewidth =1, alpha = 0.4, color = 'k')
+        storage = [tlsnp[i,1]]
+        bar_loc = tlsnp[i,0]
+        cycle_temp = []
+        index_temp = []
 
-    ax.set_xlabel('Simulation time (s)')
-    ax.set_ylabel('Cycle split (-)')
-    ax.xaxis.grid(True)
+    if tlsnp[i, 1] in flattenedGreen:
+        cycle_temp.append(tlsnp[i+1,0] - tlsnp[i,0])
+        index_temp.append(i)
 
-    ax.set_xlim(0,3750)
-    ax.set_ylim(0,1)
-    ax.set_aspect(500, adjustable='box')
+ax.set_xlabel('Simulation time $[s]$')
+ax.set_ylabel('Cycle split $[-]$')
+ax.set_xticks(np.arange(0,3900, 150))
+ax.xaxis.grid(True)
 
-plt.sca(axes[0])
+ax.set_xlim(0,3750)
+ax.set_ylim(0,1)
+ax.set_aspect(500, adjustable='box')
+
+plt.sca(ax)
 handles, labels = plt.gca().get_legend_handles_labels()
 by_label = dict(zip(labels, handles))
 plt.legend(by_label.values(), by_label.keys(), 

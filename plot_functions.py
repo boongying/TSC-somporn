@@ -85,7 +85,7 @@ def tlsNumpy(tlsdf: pd.DataFrame,
     amberRedTimes = pd.concat([pd.Series(tlsdf.loc[tlsdf.index[1:],'time'].to_numpy() - tlsdf.loc[tlsdf.index[:-1],'time'].to_numpy()),
                         pd.Series([float('nan')],index = [tlsdf.index.max()])])
     tlsdf_reduced.loc[amberRedRows, 'AmberRed'] = amberRedTimes.loc[amberRedRows]
-    return tlsdf_reduced.to_numpy().copy()
+    return tlsdf_reduced.to_numpy(dtype=np.float32).copy()
     
 
 def universal_widgets(tlsnp, axSplit, axDist, axCyclic, axPlan):
@@ -154,7 +154,7 @@ def universal_widgets(tlsnp, axSplit, axDist, axCyclic, axPlan):
     def splitfunc(label):
         global onlyGreen
         if label == 'Green + Yellow & red':
-            onlyGreen = None
+            onlyGreen = 0
             texts[-1].set_alpha(1.0)
         elif label == 'Green':
             onlyGreen = -1
@@ -228,8 +228,10 @@ def plot_greenTimeDistribution(ax: plt.Axes,
     dist_ylim = ax.get_ylim()
     ax.legend(prop={'size': 10})
     ax.set_xlabel('Green time (s)')
+    ax.set_xticks(dist_bins)
     ax.set_ylabel('Frequency')
     selected_time = (time_slider.val[0] < tlsnp[:,0]) & (tlsnp[:,0]  < time_slider.val[1])
+    print(tlsnp.dtype)
     for col, barContainer in enumerate(ax.containers, 2):
         noNaN = ~np.isnan(tlsnp[selected_time,col])
         heights = np.histogram(tlsnp[selected_time][noNaN,col], bins = dist_bins, density = density)[0]
@@ -293,14 +295,15 @@ def plot_cyclicity(ax: plt.Axes,
     storage = []
     greenSubStages = {}
     for column in  stages:
-        greenSubStages[column] = stages[column].loc[stages[column] == 'g'].index.to_list()
+        greenSubStages[column] = stages[column].loc[stages[column] == 'G'].index.to_list()
     flattenedGreen = [i for j in list(greenSubStages.values()) for i in j]
     bar_colours = pd.Series(bar_colours, index = flattenedGreen) # watch out, this may not work when a stage is green at more than 1 subStages
-    for i in range(tlsnp.shape[0]-1):
+    for i in range(tlsnp.shape[0]):
         storage.append(tlsnp[i,1])
-        cond1 = any([storage.count(subStageID) > 1 for subStageID in stages.index]) and cyclicity == 1 # the condition for first varition of plot
-        cond2 = all([subStageID in storage for subStageID in stages.index]) and cyclicity == 2 # the condition for second varition of plot
-        if cond1 or cond2:
+        cond1 = any([storage.count(subStageID[0]) > 1 for subStageID in greenSubStages.values()]) and cyclicity == 1 # the condition for first varition of plot
+        cond2 = all([subStageID[0] in storage for subStageID in greenSubStages.values()]) and cyclicity == 2 # the condition for second varition of plot
+        terminal = (i == tlsnp.shape[0]-1)
+        if cond1 or cond2 or terminal:
             storage = [tlsnp[i,1]]
             bar_loc = tlsnp[i,0]
             last_top = 0 
@@ -322,7 +325,7 @@ def plot_cyclicity(ax: plt.Axes,
     
 
 
-def clusterPlot_TLS(tlsdf, stageIndices, stageNames, **kwargs):
+def clusterPlot_TLS(tlsdf, stageIndices, stageNames, end_time, **kwargs):
     assert len(stageIndices) == len(tlsdf.loc[0,'state']), 'The grouping of movements into stages is not valid'
     
     #Handling the keyword arugments which are optional arguments
@@ -336,6 +339,12 @@ def clusterPlot_TLS(tlsdf, stageIndices, stageNames, **kwargs):
     colnames.loc[colnames == 'phase'] = 'subStageID'
     tlsdf.columns = colnames
     del colnames
+    
+    #adding last row
+    last_row = tlsdf.loc[(tlsdf['subStageID'] == 0),:].iloc[0].to_frame().T
+    last_row['time'] = end_time
+    tlsdf = pd.concat([tlsdf,last_row], ignore_index = True, axis = 0)
+    
     #basic meta-data for the following subroutines
     stages = tlsStages(tlsdf, stageIndices, stageNames, stage_type)
     tlsnp = tlsNumpy(tlsdf, stages)
