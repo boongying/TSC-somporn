@@ -13,10 +13,12 @@ longStageNames = ['West-East: Left & Through','West-East: Right','North-South: L
 # bar_colours = ['salmon','olive','lime','plum']
 bar_colours = ['c','y','m','k']
 
-exp_num = 7
-eps = 31
+study = 'D2.0'
+exp = '2'
+run = '0'
+eps = 999
 
-tlsdf = pd.read_xml('./data/exp{}_tlsrecord_episode{}.xml'.format(exp_num,eps))
+tlsdf = pd.read_xml('./data/{}_e{}_r{}_tlsrecord_eps{}.xml'.format(study,exp,run,eps))
 
 #change all the subStageID of the fixed time program
 newids = [1, 2, 3, 4, 0, 5, 6, 7, 8, 0]
@@ -41,17 +43,20 @@ stages = tlsStages(tlsdf, stageIndices, stageNames, definition = 'mode')
 tlsnp = tlsNumpy(tlsdf, stages)
 
 #plot for state history
-s_rl = pd.read_csv('./data/exp{}_test{}_hist.csv'.format(exp_num,eps))
+s_rl = pd.read_csv('./data/{}_e{}_r{}_test{}_hist.csv'.format(study,exp,run,eps))
 s_rl[stageNames[0]] = s_rl[['Queue_W_l','Queue_W_s','Queue_E_l','Queue_E_s']].sum(axis = 1)
 s_rl[stageNames[1]] = s_rl[['Queue_W_r','Queue_E_r']].sum(axis = 1)
 s_rl[stageNames[2]] = s_rl[['Queue_N_l','Queue_N_s','Queue_S_l','Queue_S_s']].sum(axis = 1)
 s_rl[stageNames[3]] = s_rl[['Queue_N_r','Queue_S_r']].sum(axis = 1)
 
 #evaluation data
-eval_e3 = pd.read_csv('./data/exp{}_test{}_eval.csv'.format(exp_num,eps))
+eval_e3 = pd.read_csv('./data/{}_e{}_r{}_eps{}_eval.csv'.format(study,exp,run,eps))
 eval_e3 = pd.concat([eval_e3.iloc[0:1], eval_e3], ignore_index = True)
 eval_e3.iloc[0,0] = 0
 eval_e3.drop('meanTimeLoss',axis = 1, inplace = True)
+
+#total log data
+total_df = pd.read_csv('./data/{}_e{}_r{}_eps{}_total.csv'.format(study,exp,run,eps))
 
 
 
@@ -70,7 +75,7 @@ for i, ax in enumerate(list(itertools.chain.from_iterable(axes[:2]))):
         ax.set_ylim(-35,0)
         ax.grid('on')
     else:
-        ax.plot(x = eval_e3['to_time'], y = eval_e3.iloc[:,i+1],
+        ax.step(x = eval_e3['to_time'], y = eval_e3.iloc[:,i+1],
                 linewidth = 1.2, where='pre')
         ax.set_ylabel(e3_labels[i])
         ax.set_title(e3_titles[i])
@@ -78,9 +83,9 @@ for i, ax in enumerate(list(itertools.chain.from_iterable(axes[:2]))):
         ax.set_xticks(np.arange(150,eval_e3['to_time'].max()+150, 600))
         ax.grid('on')
 
-fig.suptitle('Exp. {}, episode {}'.format(exp_num, eps))
+fig.suptitle('Exp. {}, episode {}'.format(exp, eps))
 plt.tight_layout()
-plt.savefig("summary_exp{}_ep{}.svg".format(exp_num, eps), tight_layout = True, format = 'svg')
+plt.savefig("summary_exp{}_ep{}.svg".format(exp, eps), format = 'svg')
 plt.close('all')
 #%% plot for state history
 fig, axes = plt.subplots(figsize = (15,10), ncols = 1, nrows = 3, sharex = True)
@@ -110,13 +115,12 @@ axes[-1].set_xlim(eval_e3['to_time'].min(), eval_e3['to_time'].max())
 axes[-1].set_xticks(np.arange(150,eval_e3['to_time'].max()+150, 150))
 axes[-1].set_xlabel('Simulation time (s)')
 
-fig.suptitle('Exp. {}, episode {}'.format(exp_num, eps))
+fig.suptitle('Exp. {}, episode {}'.format(exp, eps))
 plt.tight_layout()
-plt.savefig("history_exp{}_ep{}.svg".format(exp_num, eps), tight_layout = True, format = 'svg')
+plt.savefig("history_exp{}_ep{}.svg".format(exp, eps), format = 'svg')
 plt.close('all')
 
-#%% Plot for cyclicity workaround next day!
-
+#%% Plot for cyclicity 
 #Plot prarameters
 cyclicity = 1
 '''
@@ -178,3 +182,21 @@ by_label = dict(zip(labels, handles))
 plt.legend(by_label.values(), by_label.keys(), 
             bbox_to_anchor = (1.0,1.05), loc = 'lower right',
             borderaxespad = 0)
+
+plt.tight_layout()
+plt.savefig("cyclicity_exp{}_ep{}.svg".format(exp, eps), format = 'svg')
+plt.close('all')
+
+
+#%% Plot for in-depth inspection
+fig, ax = plt.subplots(figsize = (20,8))
+
+ax.step(x = total_df['simTime'], y= total_df['e2_W_0/JamLengthVehicle'],
+        label = 'Queue', where = 'pre')
+ax.step(x = total_df['simTime'], y= total_df['e2_W_0/LastStepVehicleNumber'],
+        label = 'Occupancy', where = 'pre')
+ax.legend()
+
+plt.tight_layout()
+plt.savefig("data_diff_exp{}_ep{}.svg".format(exp, eps), format = 'svg')
+plt.close('all')
