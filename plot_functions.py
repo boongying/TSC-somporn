@@ -129,7 +129,7 @@ def universal_widgets(tlsnp, axSplit, axDist, axCyclic, axPlan):
     time_slider.on_changed(time_update)
     
     # RadioButtons for more plot options
-    radio1 = RadioButtons(plt.axes([0.72, 0.58, 0.18, 0.07]), ['Frequency','Probability density'])
+    radio1 = RadioButtons(plt.axes([0.8, 0.91, 0.15, 0.06]), ['Frequency','Probability density'])
     def histfunc(label):
         global density
         if label =='Frequency':
@@ -150,7 +150,7 @@ def universal_widgets(tlsnp, axSplit, axDist, axCyclic, axPlan):
     
     radio1.on_clicked(histfunc)
     
-    radio2 = RadioButtons(plt.axes([0.3, 0.63, 0.18, 0.07]), ['Green + Yellow & red','Green'])
+    radio2 = RadioButtons(plt.axes([0.35, 0.86, 0.15, 0.06]), ['Green + Yellow & red','Green'])
     def splitfunc(label):
         global onlyGreen
         if label == 'Green + Yellow & red':
