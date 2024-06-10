@@ -4,7 +4,7 @@
 
 ### Description
 
-The main functionality is the interactive plot for traffic signal indications given a SUMO-native data format 'tlsrecord'.
+The main functionality provided by the code here is the interactive plot for traffic signal indications given a SUMO-native data format 'tlsrecord'.
 This repository also includes additional tools for offset analysis and grid-network weights visualisation.
 
 ### Directory
